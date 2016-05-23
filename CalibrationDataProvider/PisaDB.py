@@ -2,6 +2,8 @@ from CalibrationDataProvider import AbstractCalibrationDataProvider
 
 import MySQLdb
 import getpass
+import urllib
+import os
 
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
@@ -13,12 +15,20 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         self.nPix = self.nRows * self.nCols
         self.defaultTrim = 15
 
+        self.dbServer = 'cmspixelprod.pi.infn.it'
+        self.dbUrl = 'http://' + self.dbServer
+
         self.queryString = '''
 SELECT * FROM test_fullmodule
 JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
 JOIN test_dacparameters ON test_dacparameters.FULLMODULEANALYSISTEST_ID = test_fullmoduleanalysis.TEST_ID
 WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %s ORDER BY ROC_POS;
-                          '''
+        '''
+
+        self.queryStringFTResults = '''
+        SELECT FULLMODULE_ID, STEP, DATA_ID FROM view10
+        WHERE FULLMODULE_ID = %s AND STEP = %s;
+        '''
 
         self.dacTable = {
             'VDIG': 'Vdd',
@@ -41,8 +51,13 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
             'WBC': 'WBC',
             'READBACK': 'Readback',
         }
+        try:
+            os.mkdir('temp')
+        except:
+            raise
+
         Password = getpass.getpass()
-        self.db=MySQLdb.connect(host="cmspixelprod.pi.infn.it", user="reader", passwd=Password, db="prod_pixel")
+        self.db=MySQLdb.connect(host=self.dbServer, user="reader", passwd=Password, db="prod_pixel")
 
 
     def getRocDacs(self, ModuleID, options = {}):
@@ -62,3 +77,27 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
             dacs.append({'ROC': row['ROC_POS'], 'DACs': rocDACs})
 
         return dacs
+
+
+    def getTrimBits(self, ModuleID, options={}):
+        trims = []
+
+        cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        tempnominal = options['tempnominal'] if 'tempnominal' in options else 'm20_1'
+        cursor.execute(self.queryStringFTResults, (ModuleID, tempnominal))
+        self.db.commit()
+        rowsRemoteDataPath = cursor.fetchall()
+        if len(rowsRemoteDataPath) == 1:
+            remoteModuleDataPath = self.dbUrl + rowsRemoteDataPath[0]['DATA_ID'].replace('file:', '')
+            for iRoc in range(self.nROCs):
+                remoteFileName = '/Chips/Chip%d/TrimBitMap/TrimBitMap.root'%iRoc
+                urllib.urlretrieve(remoteModuleDataPath + remoteFileName, "temp/TrimBitMap%sROC%d.root"%(ModuleID, iRoc))
+                rocTrims = [self.defaultTrim] * self.nPix
+
+                # read trim file
+
+                # todo: read file with root
+
+                trims.append({'ROC': iRoc, 'Trims': rocTrims})
+
+        return trims
