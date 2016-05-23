@@ -58,7 +58,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         localModuleDataPath = self.getLocalModuleDataPath(ModuleID=ModuleID, options=options)
 
         for iROC in range(self.nROCs):
-            dacFileName = os.path.join(localModuleDataPath, "dacParameters%s_C%d.dat"%(options['DacSuffix'] if 'DacSuffix' in options else '', iROC))
+            dacFileName = os.path.join(localModuleDataPath, "dacParameters%s_C%d.dat"%(options['TrimValue'] if 'TrimValue' in options else '', iROC))
             rocDACs = []
             if os.path.isfile(dacFileName):
                 with open(dacFileName, 'r') as dacFile:
@@ -77,7 +77,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         localModuleDataPath = self.getLocalModuleDataPath(ModuleID=ModuleID, options=options)
 
         for iROC in range(self.nROCs):
-            trimFileName = os.path.join(localModuleDataPath, "trimParameters%s_C%d.dat" %(options['TrimSuffix'] if 'TrimSuffix' in options else '', iROC))
+            trimFileName = os.path.join(localModuleDataPath, "trimParameters%s_C%d.dat" %(options['TrimValue'] if 'TrimValue' in options else '', iROC))
             rocTrims = [self.defaultTrim]*self.nPix
             with open(trimFileName, 'r') as trimFile:
                 for line in trimFile:
