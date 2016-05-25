@@ -5,8 +5,8 @@ from ModulePositionProvider.LocalData import ModulePositionProvider
 from POSWriter.POSWriter import POSWriter
 
 dataSource = CalibrationDataProvider(dataPath="D:/ModuleData/")
-modulePositionTable = ModulePositionProvider(dataPath="D:/ModuleData/")
-posWriter = POSWriter(outputPath="D:/ModuleData/")
+modulePositionTable = ModulePositionProvider(dataPath="ExampleData")
+posWriter = POSWriter(outputPath="OutputData")
 
 
 moduleID = 'M2222'

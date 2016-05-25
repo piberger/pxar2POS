@@ -1,15 +1,22 @@
+import os
+
 class POSWriter(object):
 
     def __init__(self, outputPath = ""):
         self.columnWidth = 15
         self.rocSuffix = '_ROC%d'
-        self.outputPath = outputPath
+        pathParts = outputPath.replace('\\','/').split('/')
+        self.outputPath = os.path.join(*pathParts) + '/'
+        try:
+            os.mkdir(self.outputPath)
+        except:
+            pass
         self.nRows = 80
         self.nCols = 52
 
     def writeDACs(self, ModuleID, ModulePosition, rocsData):
 
-        outputFileName = "ROC_DAC_module_" + "_".join(ModulePosition) + ".dat"
+        outputFileName = self.outputPath + "ROC_DAC_module_" + "_".join(ModulePosition) + ".dat"
 
         with open(outputFileName, 'w') as outputFile:
             for rocData in rocsData:
@@ -25,7 +32,7 @@ class POSWriter(object):
                     outputFile.write(dacLine)
 
     def writeTrim(self, ModuleID, ModulePosition, trimData):
-        outputFileName = "ROC_Trims_module_" + "_".join(ModulePosition) + ".dat"
+        outputFileName = self.outputPath + "ROC_Trims_module_" + "_".join(ModulePosition) + ".dat"
 
         with open(outputFileName, 'w') as outputFile:
             for rocData in trimData:

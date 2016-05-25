@@ -54,7 +54,7 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
         try:
             os.mkdir('temp')
         except:
-            raise
+            pass
 
         Password = getpass.getpass()
         self.db=MySQLdb.connect(host=self.dbServer, user="reader", passwd=Password, db="prod_pixel")
