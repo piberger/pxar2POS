@@ -3,6 +3,9 @@ import os
 
 class ModulePositionProvider(AbstractModulePositionProvider):
 
+    # modules.txt format (ID BPix/FPix BmO/BpO/BmI/BpI sector layer ladder pos) separated by space:
+    # e.g. M2222 BPix BmO SEC1 LYR2 LDR1H MOD4
+
     def __init__(self, dataPath = ""):
         self.dataPath = dataPath
 

@@ -4,9 +4,9 @@ import os
 
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
-    def __init__(self, dataPath = "", nROCs = 16):
-        self.dataPath = dataPath
-        self.nROCs = nROCs
+    def __init__(self, dataSource = ""):
+        self.dataPath = dataSource
+        self.nROCs = 16
         self.nRows = 80
         self.nCols = 52
         self.nPix = self.nRows * self.nCols

@@ -4,18 +4,27 @@ import MySQLdb
 import getpass
 import urllib
 import os
+import json
+try:
+    import ROOT
+except:
+    pass
 
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
-    def __init__(self, dataPath = "", nROCs = 16):
-        self.dataPath = dataPath
-        self.nROCs = nROCs
+    def __init__(self, dataSource = None):
+        # module/chip properties
+        self.nROCs = 16
         self.nRows = 80
         self.nCols = 52
         self.nPix = self.nRows * self.nCols
+
+        # default trim bit value. 0=lowest threshold, 15=highest threshold
         self.defaultTrim = 15
 
-        self.dbServer = 'cmspixelprod.pi.infn.it'
+        # database url
+        self.dataPath = dataSource
+        self.dbServer = dataSource
         self.dbUrl = 'http://' + self.dbServer
 
         self.queryString = '''
@@ -51,14 +60,23 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
             'WBC': 'WBC',
             'READBACK': 'Readback',
         }
+
+        # connect to database
+        self.dbUser = "reader"
+        self.dbName = "prod_pixel"
+        print "connect to {dbUser}@{dbServer} database: {dbName}".format(dbUser=self.dbUser, dbServer=self.dbServer, dbName=self.dbName)
+        Password = getpass.getpass()
+        self.db = MySQLdb.connect(host=self.dbServer, user=self.dbUser, passwd=Password, db=self.dbName)
+
+        # remote paths to download files
+        self.remotePathTrimBitMap = '/Chips/Chip{iRoc}/TrimBitMap/TrimBitMap.root'
+        self.remotePathTBM = '/TBM/KeyValueDictPairs.json'
+
+        # temp folder for downloads from database
         try:
             os.mkdir('temp')
         except:
             pass
-
-        Password = getpass.getpass()
-        self.db=MySQLdb.connect(host=self.dbServer, user="reader", passwd=Password, db="prod_pixel")
-
 
     def getRocDacs(self, ModuleID, options = {}):
         dacs = []
@@ -76,11 +94,11 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
                     rocDACs.append({'Name': POSName, 'Value': '%d'%row[dbDACName]})
             dacs.append({'ROC': row['ROC_POS'], 'DACs': rocDACs})
 
+        print " -> DACs read for {ModuleID}".format(ModuleID=ModuleID)
         return dacs
 
 
-    def getTrimBits(self, ModuleID, options={}):
-        trims = []
+    def getRemoteResultsPath(self, ModuleID, options={}):
 
         cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
         tempnominal = options['tempnominal'] if 'tempnominal' in options else 'm20_1'
@@ -89,15 +107,82 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
         rowsRemoteDataPath = cursor.fetchall()
         if len(rowsRemoteDataPath) == 1:
             remoteModuleDataPath = self.dbUrl + rowsRemoteDataPath[0]['DATA_ID'].replace('file:', '')
+            return remoteModuleDataPath
+        else:
+            return None
+
+
+    def getTrimBits(self, ModuleID, options={}):
+        trims = []
+
+        remoteModuleDataPath = self.getRemoteResultsPath(ModuleID=ModuleID, options=options)
+        if remoteModuleDataPath:
             for iRoc in range(self.nROCs):
-                remoteFileName = '/Chips/Chip%d/TrimBitMap/TrimBitMap.root'%iRoc
-                urllib.urlretrieve(remoteModuleDataPath + remoteFileName, "temp/TrimBitMap%sROC%d.root"%(ModuleID, iRoc))
+                remoteFileName = self.remotePathTrimBitMap.format(iRoc=iRoc)
+                localFileName = 'temp/TrimBitMap%sROC%d.root'%(ModuleID, iRoc)
+                urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
                 rocTrims = [self.defaultTrim] * self.nPix
 
                 # read trim file
+                RootFile = ROOT.TFile.Open(localFileName)
+                RootFileCanvas = RootFile.Get("c1")
+                PrimitivesList = RootFileCanvas.GetListOfPrimitives()
+                histName = 'TrimBitMap'
+                ClonedROOTObject = None
+                HistogramFound = False
+                for i in range(0, PrimitivesList.GetSize()):
+                    if PrimitivesList.At(i).GetName().find(histName) > -1:
+                        ClonedROOTObject = PrimitivesList.At(i).Clone('TH2DTrimBitMap%sROC%d'%(ModuleID, iRoc))
+                        try:
+                            ClonedROOTObject.SetDirectory(0)
+                        except:
+                            pass
+                        HistogramFound = True
+                        RootFile.Close()
+                        break
+                if HistogramFound:
+                    nBinsX = ClonedROOTObject.GetXaxis().GetNbins()
+                    nBinsY = ClonedROOTObject.GetYaxis().GetNbins()
+                    assert nBinsX == self.nCols and nBinsY == self.nRows
 
-                # todo: read file with root
+                    for col in range(self.nCols):
+                        for row in range(self.nRows):
+                            rocTrims[col * self.nRows + row] = ClonedROOTObject.GetBinContent(1 + col, 1 + row)
 
                 trims.append({'ROC': iRoc, 'Trims': rocTrims})
-
+            print " -> trim parameters read for {ModuleID}".format(ModuleID=ModuleID)
         return trims
+
+
+    def getTbmParameters(self, ModuleID, options={}):
+        tbmParameters = []
+
+        tbmParameters.append({'Name': 'TBMABase0', 'Value': 0})
+        tbmParameters.append({'Name': 'TBMBBase0', 'Value': 0})
+        tbmParameters.append({'Name': 'TBMAAutoReset', 'Value': 0})
+        tbmParameters.append({'Name': 'TBMBAutoReset', 'Value': 0})
+        tbmParameters.append({'Name': 'TBMANoTokenPass', 'Value': 0})
+        tbmParameters.append({'Name': 'TBMBNoTokenPass', 'Value': 0})
+        tbmParameters.append({'Name': 'TBMADisablePKAMCounter', 'Value': 1})
+        tbmParameters.append({'Name': 'TBMBDisablePKAMCounter', 'Value': 1})
+        tbmParameters.append({'Name': 'TBMAPKAMCount', 'Value': 5})
+        tbmParameters.append({'Name': 'TBMBPKAMCount', 'Value': 5})
+
+        remoteModuleDataPath = self.getRemoteResultsPath(ModuleID=ModuleID, options=options)
+        if remoteModuleDataPath:
+            remoteFileName = self.remotePathTBM
+            localFileName = 'temp/TBM_%s.root'%(ModuleID)
+            urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
+
+            with open(localFileName) as data_file:
+                data = json.load(data_file)
+
+            try:
+                tbmParameters.append({'Name': 'TBMPLLDelay', 'Value': int(data['Core0a_basee']['Value'].replace('0x', ''), 16)})
+                tbmParameters.append({'Name': 'TBMADelay', 'Value': int(data['Core0a_basea']['Value'].replace('0x', ''), 16)})
+                tbmParameters.append({'Name': 'TBMBDelay', 'Value': int(data['Core0b_basea']['Value'].replace('0x', ''), 16)})
+            except:
+                raise NameError("TBM/KeyValueDictPairs.json: can't read TBM parameters from JSON file")
+
+            print " -> TBM parameters read for {ModuleID}".format(ModuleID=ModuleID)
+        return tbmParameters

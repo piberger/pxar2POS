@@ -1,23 +1,15 @@
 #!/usr/bin/env python
 
-from CalibrationDataProvider.PisaDB import CalibrationDataProvider
-from ModulePositionProvider.LocalData import ModulePositionProvider
-from POSWriter.POSWriter import POSWriter
+from pxar2POSConverter import pxar2POSConverter as pxar2POSConverter
 
-dataSource = CalibrationDataProvider(dataPath="D:/ModuleData/")
-modulePositionTable = ModulePositionProvider(dataPath="ExampleData")
-posWriter = POSWriter(outputPath="OutputData")
+# initialize converter
+converter = pxar2POSConverter()
 
-
+# ModuleID
 moduleID = 'M2222'
 
-# get module position in detector
-modulePosition = modulePositionTable.getModulePosition(moduleID)
+# select which Fulltest of FullQualification to use
+testOptions = {'Test': '*ulltest*_m20', 'TrimValue': '35'}
 
-# read dacs and output POS files
-rocDACs = dataSource.getRocDacs(ModuleID = moduleID, options = {'Test': '*ulltest*_m20', 'TrimValue': '35'})
-posWriter.writeDACs(moduleID, modulePosition, rocDACs)
+converter.convertModuleData(moduleID=moduleID, testOptions=testOptions)
 
-# trimbits
-rocTrimbits = dataSource.getTrimBits(ModuleID = moduleID, options = {'Test': '*ulltest*_m20', 'TrimValue': '35'})
-posWriter.writeTrim(moduleID, modulePosition, rocTrimbits)

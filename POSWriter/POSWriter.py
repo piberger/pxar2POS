@@ -14,11 +14,18 @@ class POSWriter(object):
         self.nRows = 80
         self.nCols = 52
 
+        #input file name
+        self.tbmInput = 'TBM_module_{ModulePosition}.dat'
+
+        #output format
+        self.dacFormat = '{Name}: {Value}\n'
+
     def writeDACs(self, ModuleID, ModulePosition, rocsData):
 
         outputFileName = self.outputPath + "ROC_DAC_module_" + "_".join(ModulePosition) + ".dat"
 
         with open(outputFileName, 'w') as outputFile:
+            nLines = 0
             for rocData in rocsData:
                 rocID = rocData['ROC']
                 rocHeaderLine = 'ROC:'.ljust(self.columnWidth) + "_".join(ModulePosition) + self.rocSuffix%rocID + '\n'
@@ -30,6 +37,8 @@ class POSWriter(object):
                 for rocDAC in rocData['DACs']:
                     dacLine = ("%s:"%rocDAC['Name']).ljust(self.columnWidth) + rocDAC['Value'] + '\n'
                     outputFile.write(dacLine)
+                nLines = len(rocData['DACs'])
+        print " -> {nLines} parameters for {nRocs} ROCS written to '{outputFileName}'".format(nLines=nLines, nRocs=len(rocsData), outputFileName=outputFileName)
 
     def writeTrim(self, ModuleID, ModulePosition, trimData):
         outputFileName = self.outputPath + "ROC_Trims_module_" + "_".join(ModulePosition) + ".dat"
@@ -50,4 +59,22 @@ class POSWriter(object):
                         colTrims += '%1x'%rocData['Trims'][iPix]
                     colLine = "col%02d:   %s\n"%(iCol, colTrims)
                     outputFile.write(colLine)
+        print " -> trimbits for {nRocs} ROCS written to '{outputFileName}'".format(nRocs=len(trimData), outputFileName=outputFileName)
 
+
+    def writeTBM(self, ModuleID, ModulePosition, tbmData):
+        modulePositionString = "_".join(ModulePosition)
+        outputFileNameRelative = self.tbmInput.format(ModulePosition=modulePositionString)
+
+        outputFileName = self.outputPath + outputFileNameRelative
+
+        with open(outputFileName, 'w') as outputFile:
+            headerLine = modulePositionString + '\n'
+
+            # write header
+            outputFile.write(headerLine)
+
+            for tbmParameter in tbmData:
+                line = self.dacFormat.format(Name=tbmParameter['Name'], Value=tbmParameter['Value'])
+                outputFile.write(line)
+        print " -> TBM parameters written to '{outputFileName}'".format(outputFileName=outputFileName)
