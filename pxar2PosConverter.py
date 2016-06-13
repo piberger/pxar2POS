@@ -6,19 +6,24 @@ from POSWriter.POSWriter import POSWriter
 
 class pxar2POSConverter(object):
 
-    def __init__(self):
+    def __init__(self, options = {}):
+
 
         # load module position table
-        self.modulePositionTable = ModulePositionProvider(dataPath="ExampleData")
+        self.modulePositionTable = ModulePositionProvider(dataPath=options['ModulePositionTable'])
 
-        # connect to Pisa DB
-        self.dataSource = CalibrationDataProvider(dataSource="cmspixelprod.pi.infn.it")
+        dataSource = options['DataSource']
+        if 'http://' in dataSource:
+            dataSource = dataSource.split('http://')[1]
 
-        # or fetch data locally
-        #self.dataSource = LocalCalibrationDataProvider(dataSource="D:/data/")
+            # connect to Pisa DB
+            self.dataSource = CalibrationDataProvider(dataSource=dataSource)
+        else:
+            # or fetch data locally
+            self.dataSource = LocalCalibrationDataProvider(dataSource=dataSource)
 
         # initialize pixel online format writer
-        self.posWriter = POSWriter(outputPath="OutputData")
+        self.posWriter = POSWriter(outputPath=options['OutputPath'])
 
 
     def convertModuleData(self, moduleID, testOptions):

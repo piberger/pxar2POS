@@ -11,7 +11,6 @@ class ModulePositionProvider(AbstractModulePositionProvider):
 
     def getModulePosition(self, ModuleID):
         pathParts = self.dataPath.split('/')
-        pathParts.append('modules.txt')
 
         if pathParts[0][-1] == ":":
             pathParts[0] = pathParts[0] + '/'
