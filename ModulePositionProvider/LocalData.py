@@ -25,4 +25,5 @@ class ModulePositionProvider(AbstractModulePositionProvider):
                     if lineSplitted[0] == ModuleID:
                         modulePosition = lineSplitted[1:]
 
+        modulePosition = [x.strip() for x in modulePosition if len(x.strip()) > 0]
         return modulePosition
