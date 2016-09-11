@@ -33,12 +33,20 @@ class POSWriter(object):
                 # write header
                 outputFile.write(rocHeaderLine)
 
+                # sort DACs
+                rocDACs = rocData['DACs']
+                rocDACOrder = ['Vdd', 'Vana', 'Vsh', 'Vcomp', 'VwllPr', 'VwllSh', 'VHldDel', 'Vtrim', 'VcThr',
+                               'VIbias_bus', 'PHOffset', 'Vcomp_ADC', 'PHScale', 'VIColOr', 'Vcal', 'CalDel',
+                               'TempRange', 'WBC', 'ChipContReg', 'Readback']
+                rocDACs.sort(key=lambda dac: rocDACOrder.index(dac['Name']) if dac['Name'] in rocDACOrder else 999)
+
                 # write DACs
                 for rocDAC in rocData['DACs']:
                     dacLine = ("%s:"%rocDAC['Name']).ljust(self.columnWidth) + rocDAC['Value'] + '\n'
                     outputFile.write(dacLine)
                 nLines = len(rocData['DACs'])
         print " -> {nLines} parameters for {nRocs} ROCS written to '{outputFileName}'".format(nLines=nLines, nRocs=len(rocsData), outputFileName=outputFileName)
+
 
     def writeTrim(self, ModuleID, ModulePosition, trimData):
         outputFileName = self.outputPath + "ROC_Trims_module_" + "_".join(ModulePosition) + ".dat"
