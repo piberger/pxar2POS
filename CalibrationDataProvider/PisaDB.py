@@ -27,16 +27,20 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         self.dbServer = dataSource
         self.dbUrl = 'http://' + self.dbServer
 
-        self.queryString = '''
-SELECT * FROM test_fullmodule
-JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
-JOIN test_dacparameters ON test_dacparameters.FULLMODULEANALYSISTEST_ID = test_fullmoduleanalysis.TEST_ID
-WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %s ORDER BY ROC_POS;
+        self.queryStringFulltests = '''
+SELECT * FROM inventory_fullmodule
+  JOIN test_fullmodulesummary ON test_fullmodulesummary.TEST_ID = LASTTEST_FULLMODULE
+  JOIN test_fullmodule ON test_fullmodule.SUMMARY_ID = LASTTEST_FULLMODULE
+  JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
+WHERE inventory_fullmodule.FULLMODULE_ID = %s AND tempnominal LIKE %s LIMIT 10;
         '''
 
-        self.queryStringFTResults = '''
-        SELECT FULLMODULE_ID, STEP, DATA_ID FROM view10
-        WHERE FULLMODULE_ID = %s AND STEP = %s;
+        self.queryStringFulltestDacs = '''
+SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_VALUE = %s ORDER BY ROC_POS LIMIT 16;
+        '''
+
+        self.queryStringFulltestData = '''
+        SELECT * FROM test_data WHERE DATA_ID = %s LIMIT 1;
         '''
 
         self.dacTable = {
@@ -110,43 +114,94 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
             line = username + ':' + password
             dbPassFile.write(line)
 
-    def getRocDacs(self, ModuleID, options = {}):
-        dacs = []
+
+    def getFulltestRow(self, ModuleID, tempnominal):
 
         cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-        tempnominal = options['tempnominal'] if 'tempnominal' in options else 'm20_1'
-        TrimValue = options['TrimValue'] if 'TrimValue' in options else ''
-        cursor.execute(self.queryString, (ModuleID, tempnominal, TrimValue))
+
+        # get list of fulltests
+        cursor.execute(self.queryStringFulltests, (ModuleID, tempnominal + '%'))
         self.db.commit()
         rows = cursor.fetchall()
-        for row in rows:
-            rocDACs = []
-            for dbDACName, POSName in self.dacTable.items():
-                if dbDACName in row:
-                    rocDACs.append({'Name': POSName, 'Value': '%d'%row[dbDACName]})
+        if len(rows) < 1:
+            print "ERROR: no Fulltests found for tempnominal=", tempnominal
+            return None
 
-            if len([x for x in rocDACs if x['Name'] == 'TempRange']) < 1:
-                rocDACs.append({'Name': 'TempRange', 'Value': '0'})
+        if len(rows) > 1:
+            print "WARNING: multiple Fulltests found for tempnominal=", tempnominal, " using the first one"
 
-            if len([x for x in rocDACs if x['Name'] == 'Readback']) < 1:
-                rocDACs.append({'Name': 'Readback', 'Value': '1'})
+        row = rows[0] # take first one
+        return row
 
-            dacs.append({'ROC': row['ROC_POS'], 'DACs': rocDACs})
 
-        print " -> DACs read for {ModuleID}".format(ModuleID=ModuleID)
+    def getRocDacs(self, ModuleID, options = {}):
+
+        # initialize
+        dacs = []
+        tempnominal = options['tempnominal'] if 'tempnominal' in options else 'm20_1'
+        TrimValue =  options['TrimValue'] if 'TrimValue' in options else '-1'
+        row = self.getFulltestRow(ModuleID, tempnominal)
+
+        if row:
+            fulltestAnalysisId = row['LASTANALYSIS_ID']
+            try:
+                print "  -> Fulltest analysis ID: ", fulltestAnalysisId
+                print "  -> tempnominal: ", tempnominal, " -> ", row['tempnominal']
+                print "  -> Temperature: ", row['TEMPVALUE']
+                print "  -> Analysis MoReWeb version: ", row['MACRO_VERSION']
+            except:
+                pass
+
+            # get DACs
+            cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+            cursor.execute(self.queryStringFulltestDacs, (fulltestAnalysisId, TrimValue))
+            self.db.commit()
+            rows = cursor.fetchall()
+            nDACs = 0
+            for row in rows:
+                rocDACs = []
+                for dbDACName, POSName in self.dacTable.items():
+                    if dbDACName in row:
+                        rocDACs.append({'Name': POSName, 'Value': '%d'%row[dbDACName]})
+                        nDACs += 1
+
+                if len([x for x in rocDACs if x['Name'] == 'TempRange']) < 1:
+                    rocDACs.append({'Name': 'TempRange', 'Value': '0'})
+
+                if len([x for x in rocDACs if x['Name'] == 'Readback']) < 1:
+                    rocDACs.append({'Name': 'Readback', 'Value': '1'})
+
+                dacs.append({'ROC': row['ROC_POS'], 'DACs': rocDACs})
+
+            print " -> {nDACs} DACs read for {ModuleID}".format(ModuleID=ModuleID, nDACs=nDACs)
+        else:
+            print "ERROR: Fulltest not found"
+
         return dacs
 
 
     def getRemoteResultsPath(self, ModuleID, options={}):
 
-        cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        # initialize
         tempnominal = options['tempnominal'] if 'tempnominal' in options else 'm20_1'
-        cursor.execute(self.queryStringFTResults, (ModuleID, tempnominal))
-        self.db.commit()
-        rowsRemoteDataPath = cursor.fetchall()
-        if len(rowsRemoteDataPath) == 1:
-            remoteModuleDataPath = self.dbUrl + rowsRemoteDataPath[0]['DATA_ID'].replace('file:', '')
-            return remoteModuleDataPath
+
+        # get fulltest analysis ID and data ID
+        row = self.getFulltestRow(ModuleID, tempnominal)
+
+        if row:
+            dataId = row['test_fullmoduleanalysis.DATA_ID']
+            print "  -> Fulltest analysis ID: ", row['LASTANALYSIS_ID']
+            print "  -> data ID: ", dataId
+
+            # get remote data path for the data ID
+            cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+            cursor.execute(self.queryStringFulltestData, (dataId, ))
+            self.db.commit()
+            rows = cursor.fetchall()
+            if len(rows) > 0:
+                remoteModuleDataPath = self.dbUrl + rows[0]['PFNs'].replace('file:', '')
+                print "  -> remote path: ", remoteModuleDataPath
+                return remoteModuleDataPath
         else:
             return None
 
@@ -210,7 +265,7 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
         remoteModuleDataPath = self.getRemoteResultsPath(ModuleID=ModuleID, options=options)
         if remoteModuleDataPath:
             remoteFileName = self.remotePathTBM
-            localFileName = 'temp/TBM_%s.root'%(ModuleID)
+            localFileName = 'temp/TBM_%s.json'%(ModuleID)
             urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
 
             with open(localFileName) as data_file:

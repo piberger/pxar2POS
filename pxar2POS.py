@@ -17,7 +17,7 @@ parser.add_argument('-T', '--trim', dest='trim',
                     default='35')
 parser.add_argument('-t', '--temp', dest='temp',
                     help='temperature',
-                    default='-20')
+                    default='m20')
 parser.add_argument('-o', '--output', dest='output',
                     help='output folder',
                     default='OutputData')
@@ -27,8 +27,6 @@ parser.add_argument('-p', '--positions', dest='positions',
 parser.add_argument('-u', '--url', dest='url',
                     help='url to database',
                     default='http://cmspixelprod.pi.infn.it')
-
-
 
 args = parser.parse_args()
 
@@ -49,7 +47,7 @@ options = {
 converter = pxar2POSConverter(options=options)
 
 # select which Fulltest of FullQualification to use
-testOptions = {'Test': '*ulltest*_m20', 'TrimValue': args.trim}
+testOptions = {'Test': '*ulltest*_' + args.temp, 'tempnominal': args.temp, 'TrimValue': args.trim}
 
 # convert files
 converter.convertModuleData(moduleID=args.module, testOptions=testOptions)

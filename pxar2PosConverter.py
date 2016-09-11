@@ -8,10 +8,10 @@ class pxar2POSConverter(object):
 
     def __init__(self, options = {}):
 
-
         # load module position table
         self.modulePositionTable = ModulePositionProvider(dataPath=options['ModulePositionTable'])
 
+        # module data source
         dataSource = options['DataSource']
         if 'http://' in dataSource:
             dataSource = dataSource.split('http://')[1]
@@ -31,7 +31,6 @@ class pxar2POSConverter(object):
         # get module position in detector
         #     B/F      O/I    sector  layer   ladder   pos
         #  -> ['BPix', 'BmO', 'SEC1', 'LYR2', 'LDR1H', 'MOD4']
-
         modulePosition = self.modulePositionTable.getModulePosition(moduleID)
 
         print "read data for module {moduleID}...".format(moduleID=moduleID)
