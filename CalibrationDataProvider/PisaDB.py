@@ -58,7 +58,8 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
             'CALDEL': 'CalDel',
             'CTRLREG': 'ChipContReg',
             'WBC': 'WBC',
-            'READBACK': 'Readback',
+            'READBACK': 'Readback', #this does not exist in DB!
+            'TEMPRANGE': 'TempRange', #this does not exist in DB!
         }
 
         # connect to database
@@ -92,6 +93,13 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
             for dbDACName, POSName in self.dacTable.items():
                 if dbDACName in row:
                     rocDACs.append({'Name': POSName, 'Value': '%d'%row[dbDACName]})
+
+            if len([x for x in rocDACs if x['Name'] == 'TempRange']) < 1:
+                rocDACs.append({'Name': 'TempRange', 'Value': '0'})
+
+            if len([x for x in rocDACs if x['Name'] == 'Readback']) < 1:
+                rocDACs.append({'Name': 'Readback', 'Value': '1'})
+
             dacs.append({'ROC': row['ROC_POS'], 'DACs': rocDACs})
 
         print " -> DACs read for {ModuleID}".format(ModuleID=ModuleID)
