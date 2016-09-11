@@ -209,6 +209,15 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
     def getTrimBits(self, ModuleID, options={}):
         trims = []
 
+        # if untrimmed configuration is requested, set all trimbits to default value
+        if 'TrimValue' in options and int(options['TrimValue']) < 0:
+            print "WARNING: TrimValue < 0, setting all trimbits to ", self.defaultTrim, " instead of obtaining them from database!"
+            for iRoc in range(self.nROCs):
+                rocTrims = [self.defaultTrim] * self.nPix
+                trims.append({'ROC': iRoc, 'Trims': rocTrims})
+            return trims
+
+        # otherwise get trimbits from database fulltest results
         remoteModuleDataPath = self.getRemoteResultsPath(ModuleID=ModuleID, options=options)
         if remoteModuleDataPath:
             for iRoc in range(self.nROCs):
