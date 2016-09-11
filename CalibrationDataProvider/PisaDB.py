@@ -66,8 +66,13 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
         self.dbUser = "reader"
         self.dbName = "prod_pixel"
         print "connect to {dbUser}@{dbServer} database: {dbName}".format(dbUser=self.dbUser, dbServer=self.dbServer, dbName=self.dbName)
-        Password = getpass.getpass()
+        Password = self.getDbPassword(self.dbUser)
         self.db = MySQLdb.connect(host=self.dbServer, user=self.dbUser, passwd=Password, db=self.dbName)
+
+        try:
+            self.saveDbPassword(self.dbUser, Password)
+        except:
+            print "could not save DB password to local file 'db.auth'"
 
         # remote paths to download files
         self.remotePathTrimBitMap = '/Chips/Chip{iRoc}/TrimBitMap/TrimBitMap.root'
@@ -78,6 +83,32 @@ WHERE test_fullmodule.FULLMODULE_ID = %s AND tempnominal = %s AND TRIM_VALUE = %
             os.mkdir('temp')
         except:
             pass
+
+    def getDbPassword(self, username):
+        dbPassFileName = 'db.auth'
+        password = ''
+        passwordFound = False
+        try:
+            if os.path.isfile(dbPassFileName):
+                with open(dbPassFileName, 'r') as dbPassFile:
+                    for line in dbPassFile:
+                        if line.split(':')[0].strip() == username:
+                            password = line.split(':')[1].strip() if len(line.split(':')) > 1 else ''
+                            passwordFound = True
+                            break
+        except:
+            pass
+
+        if not passwordFound:
+            password = getpass.getpass()
+
+        return password
+
+    def saveDbPassword(self, username, password):
+        dbPassFileName = 'db.auth'
+        with open(dbPassFileName, 'w') as dbPassFile:
+            line = username + ':' + password
+            dbPassFile.write(line)
 
     def getRocDacs(self, ModuleID, options = {}):
         dacs = []
