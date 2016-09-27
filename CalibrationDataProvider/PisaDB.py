@@ -139,7 +139,7 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         # initialize
         dacs = []
         tempnominal = options['tempnominal'] if 'tempnominal' in options else 'm20_1'
-        TrimValue =  options['TrimValue'] if 'TrimValue' in options else '-1'
+        TrimValue = options['TrimValue'] if 'TrimValue' in options else '-1'
         row = self.getFulltestRow(ModuleID, tempnominal)
 
         if row:

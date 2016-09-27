@@ -3,10 +3,12 @@ from CalibrationDataProvider.LocalData import CalibrationDataProvider as LocalCa
 
 from ModulePositionProvider.LocalData import ModulePositionProvider
 from POSWriter.POSWriter import POSWriter
+import traceback
 
 class pxar2POSConverter(object):
 
     def __init__(self, options = {}):
+        self.verbose = False
 
         # load module position table
         self.modulePositionTable = ModulePositionProvider(dataPath=options['ModulePositionTable'])
@@ -15,7 +17,6 @@ class pxar2POSConverter(object):
         dataSource = options['DataSource']
         if 'http://' in dataSource:
             dataSource = dataSource.split('http://')[1]
-
             # connect to Pisa DB
             self.dataSource = CalibrationDataProvider(dataSource=dataSource)
         else:
@@ -24,6 +25,29 @@ class pxar2POSConverter(object):
 
         # initialize pixel online format writer
         self.posWriter = POSWriter(outputPath=options['OutputPath'])
+
+
+    def printError(self, errorMessage, tracebackMsg = None):
+        if tracebackMsg:
+            print "\x1b[31mERROR: %s\n%s\x1b[0m"%(errorMessage.strip(), tracebackMsg.strip())
+        else:
+            print "\x1b[31mERROR: %s\x1b[0m"%errorMessage.strip()
+
+    # simple linear DAC interpolation
+    def interpolateLinear(self, dacValueLow, dacValueHigh, temperature, temperatureLow=-20, temperatureHigh=17):
+        deltaY = dacValueHigh - dacValueLow
+        deltaX = temperatureHigh - temperatureLow
+        m = deltaY / deltaX
+        interpolatedValue = m * (temperature - temperatureLow) + dacValueLow
+        if self.verbose:
+            print "  low:", dacValueLow, " high:", dacValueHigh, " -> ",interpolatedValue
+        return interpolatedValue
+
+
+    def interpolateDAC(self, dacName, dacValueLow, dacValueHigh, temperature, temperatureLow=-20, temperatureHigh=17):
+        if self.verbose:
+            print "interpolate DAC:", dacName
+        return self.interpolateLinear(dacValueLow, dacValueHigh, temperature, temperatureLow, temperatureHigh)
 
 
     def convertModuleData(self, moduleID, testOptions):
@@ -36,17 +60,73 @@ class pxar2POSConverter(object):
         print "read/write data for module {moduleID}...".format(moduleID=moduleID)
         errorsOccurred = 0
 
-        try:
-            # read DAC parameters
-            rocDACs = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
+        # check for temperature interpolation
+        temperatureInterpolation = False
+        interpolationTemperatureLow = -20
+        interpolationTemperatureHigh = 17
+        if 'tempnominal' in testOptions and testOptions['tempnominal'][0:3] not in ['m20', 'p17']:
+            interpolationTemperature = float(testOptions['tempnominal'].replace('m', '-').replace('p', ''))
+            temperatureInterpolation = True
 
-            # write DAC parameters
-            self.posWriter.writeDACs(moduleID, modulePosition, rocDACs)
+        # read DAC parameters
+        try:
+            if temperatureInterpolation:
+                testOptions['tempnominal'] = 'm20_1'
+                rocDACsLow = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
+                testOptions['tempnominal'] = 'p17_1'
+                rocDACsHigh = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
+            else:
+                rocDACs = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
         except Exception as e:
-            print e
-            print "ERROR: could not read/write DAC parameters"
+            self.printError("could not read DAC parameters", traceback.format_exc())
             errorsOccurred += 1
 
+        nDacsInterpolated = 0
+        try:
+            if temperatureInterpolation:
+                rocDACs = []
+
+                for rocDACsRocLow in rocDACsLow:
+                    rocDACsRoc = []
+                    rocPos = rocDACsRocLow['ROC']
+                    for dacTuple in rocDACsRocLow['DACs']:
+
+                        # low T DAC value
+                        dacName = dacTuple['Name']
+                        dacValueLow = float(dacTuple['Value'].strip())
+
+                        # find high T DAC value
+                        rocDACsRocHigh = [x for x in rocDACsHigh if x['ROC'] == rocPos]
+                        if len(rocDACsRocHigh) != 1:
+                            raise Exception('ROC not found for high T: %r / %r'%(rocPos, dacName))
+                        dacValueHighList = [x for x in rocDACsRocHigh[0]['DACs'] if x['Name'] == dacName]
+                        if len(rocDACsRocHigh) != 1:
+                            raise Exception('DAC not found for high T: %r' % dacName)
+                        dacValueHigh = float(dacValueHighList[0]['Value'].strip())
+
+                        # interpolation
+                        interpolatedValue = '%d'%int(self.interpolateDAC(dacName=dacName, dacValueLow=dacValueLow,
+                            dacValueHigh=dacValueHigh, temperature=interpolationTemperature,
+                            temperatureLow=interpolationTemperatureLow, temperatureHigh=interpolationTemperatureHigh))
+                        nDacsInterpolated += 1
+
+                        rocDACsRoc.append({'Name': dacName, 'Value': interpolatedValue})
+
+                    rocDACs.append({'ROC': rocPos, 'DACs': rocDACsRoc})
+                print " -> interpolated %d DACs to %1.2f C"%(nDacsInterpolated, interpolationTemperature)
+        except Exception as e:
+            self.printError("could not interpolate DACs", traceback.format_exc())
+            errorsOccurred += 1
+
+
+        # write DAC parameters
+        try:
+            self.posWriter.writeDACs(moduleID, modulePosition, rocDACs)
+        except Exception as e:
+            self.printError("could not write DAC parameters", traceback.format_exc())
+            errorsOccurred += 1
+
+        # trimbits
         try:
             # read trimbits
             rocTrimbits = self.dataSource.getTrimBits(ModuleID=moduleID, options=testOptions)
@@ -54,10 +134,10 @@ class pxar2POSConverter(object):
             # write trimbits
             self.posWriter.writeTrim(moduleID, modulePosition, rocTrimbits)
         except Exception as e:
-            print e
-            print "ERROR: could not read/write trimbits"
+            self.printError("could not read/write trimbits", traceback.format_exc())
             errorsOccurred += 1
 
+        # TBM parameters
         try:
             # read TBM parameters
             tbmParameters = self.dataSource.getTbmParameters(ModuleID=moduleID, options=testOptions)
@@ -65,12 +145,11 @@ class pxar2POSConverter(object):
             # write TBM parameters to pixel online format
             self.posWriter.writeTBM(moduleID, modulePosition, tbmParameters)
         except Exception as e:
-            print e
-            print "ERROR: could not read/write TBM parameters"
+            self.printError("could not read/write TBM parameters", traceback.format_exc())
             errorsOccurred += 1
 
 
         if errorsOccurred < 1:
             print " --> done."
         else:
-            print " --> done, but some errors occurred!!!"
+            print "\x1b[31m --> done, but some errors occurred!!!\x1b[0m"
