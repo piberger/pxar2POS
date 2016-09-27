@@ -24,3 +24,7 @@ get parameters for module M2222 from first FT at -20, trimmed to 35:
 
 get untrimmed parameters at +17:
 ./pxar2POS.py -m M2222 -T -1 -t p17 -o Parameters_p17_untrimmed/
+
+interpolate DACs linearly between -20 and +17 ----> +8 degrees and save in dedicated folder:
+./pxar2POS.py -m M2222 -t p8 -o Parameters_p8/
+
