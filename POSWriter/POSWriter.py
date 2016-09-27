@@ -72,6 +72,7 @@ class POSWriter(object):
 
     def writeTBM(self, ModuleID, ModulePosition, tbmData):
         modulePositionString = "_".join(ModulePosition)
+        modulePositionString += "_ROC0"
         outputFileNameRelative = self.tbmInput.format(ModulePosition=modulePositionString)
 
         outputFileName = self.outputPath + outputFileNameRelative
