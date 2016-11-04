@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 import argparse
-from pxar2POSConverter import pxar2POSConverter as pxar2POSConverter
 
+try:
+    from pxar2POSConverter import pxar2POSConverter as pxar2POSConverter
+except:
+    try:
+        from pxar2PosConverter import pxar2POSConverter as pxar2POSConverter
+    except:
+        print "\x1b[31mcould not load module: 'pxar2POSConverter'\x1b[0m"
 
 print "-"*80
 print " pxar -> POS converter:"

@@ -31,6 +31,8 @@ class ModulePositionProvider(AbstractModulePositionProvider):
             print " -> module found:", ModuleID
             print " -> position: ", '/'.join(modulePosition)
         else:
-            print " -> module not found:", ModuleID
+            print "\x1b[31m -> module ", ModuleID," not found in ", modulesListFileName ,"\x1b[0m"
+            print "\x1b[31m -> module ID will be used to create files instead of BPix position!\x1b[0m"
+            modulePosition = [ModuleID]
 
         return modulePosition

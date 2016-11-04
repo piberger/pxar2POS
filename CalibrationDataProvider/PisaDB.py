@@ -1,6 +1,12 @@
 from CalibrationDataProvider import AbstractCalibrationDataProvider
 
-import MySQLdb
+try:
+    import MySQLdb
+except:
+    print "\x1b[31mcould not load module: MySQLdb\x1b[0m"
+    print "run: 'pip install MySQL-python'"
+    exit(0)
+
 import getpass
 import urllib
 import os
@@ -124,7 +130,7 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         self.db.commit()
         rows = cursor.fetchall()
         if len(rows) < 1:
-            print "ERROR: no Fulltests found for tempnominal=", tempnominal
+            print "\x1b[31mERROR: no Fulltests found for tempnominal=", tempnominal,"\x1b[0m"
             return None
 
         if len(rows) > 1:

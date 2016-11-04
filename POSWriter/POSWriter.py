@@ -24,6 +24,9 @@ class POSWriter(object):
 
         outputFileName = self.outputPath + "ROC_DAC_module_" + "_".join(ModulePosition) + ".dat"
 
+        if len(rocsData) < 1:
+            raise Exception("no ROC DAC parameters found!")
+
         with open(outputFileName, 'w') as outputFile:
             nLines = 0
             for rocData in rocsData:
@@ -45,11 +48,15 @@ class POSWriter(object):
                     dacLine = ("%s:"%rocDAC['Name']).ljust(self.columnWidth) + rocDAC['Value'] + '\n'
                     outputFile.write(dacLine)
                 nLines = len(rocData['DACs'])
-        print " -> {nLines} parameters for {nRocs} ROCS written to '{outputFileName}'".format(nLines=nLines, nRocs=len(rocsData), outputFileName=outputFileName)
-
+        print " -> {nLines} parameters for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nLines=nLines, nRocs=len(rocsData), outputFileName=outputFileName)
+        if nLines < 1:
+            raise Exception("no ROC DAC parameters written!")
 
     def writeTrim(self, ModuleID, ModulePosition, trimData):
         outputFileName = self.outputPath + "ROC_Trims_module_" + "_".join(ModulePosition) + ".dat"
+
+        if len(trimData) < 1:
+            raise Exception("no ROCs with trimbit parameters found!")
 
         with open(outputFileName, 'w') as outputFile:
             for rocData in trimData:
@@ -67,7 +74,7 @@ class POSWriter(object):
                         colTrims += '%1x'%rocData['Trims'][iPix]
                     colLine = "col%02d:   %s\n"%(iCol, colTrims)
                     outputFile.write(colLine)
-        print " -> trimbits for {nRocs} ROCS written to '{outputFileName}'".format(nRocs=len(trimData), outputFileName=outputFileName)
+        print " -> trimbits for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nRocs=len(trimData), outputFileName=outputFileName)
 
 
     def writeTBM(self, ModuleID, ModulePosition, tbmData):
@@ -76,6 +83,9 @@ class POSWriter(object):
         outputFileNameRelative = self.tbmInput.format(ModulePosition=modulePositionString)
 
         outputFileName = self.outputPath + outputFileNameRelative
+
+        if len(tbmData) < 1:
+            raise Exception("no ROCs with TBM parameters found!")
 
         with open(outputFileName, 'w') as outputFile:
             headerLine = modulePositionString + '\n'
@@ -86,4 +96,4 @@ class POSWriter(object):
             for tbmParameter in tbmData:
                 line = self.dacFormat.format(Name=tbmParameter['Name'], Value=tbmParameter['Value'])
                 outputFile.write(line)
-        print " -> TBM parameters written to '{outputFileName}'".format(outputFileName=outputFileName)
+        print " -> TBM parameters written to '\x1b[34m{outputFileName}\x1b[0m'".format(outputFileName=outputFileName)
