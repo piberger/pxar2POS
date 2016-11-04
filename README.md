@@ -6,6 +6,7 @@ converts pxar parameter files to POS files
 
 - Python (2.7)
 - MySQL-python ("pip install MySQL-python")
+- ROOT (5.34+ or 6 recommended)
 
 
 ### Installation & running
