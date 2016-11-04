@@ -2,6 +2,11 @@
 converts pxar parameter files to POS files
 
 
+### Requirements
+
+- Python (2.7)
+- MySQL-python ("pip install MySQL-python")
+
 
 ### Installation & running
 
