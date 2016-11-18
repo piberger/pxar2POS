@@ -19,19 +19,16 @@ except:
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
     def __init__(self, dataSource = None):
-        # module/chip properties
-        self.nROCs = 16
-        self.nRows = 80
-        self.nCols = 52
-        self.nPix = self.nRows * self.nCols
-
-        # default trim bit value. 0=lowest threshold, 15=highest threshold
-        self.defaultTrim = 15
+        super(CalibrationDataProvider, self).__init__()
 
         # database url
         self.dataPath = dataSource
-        self.dbServer = dataSource
-        self.dbUrl = 'http://' + self.dbServer
+        self.dbServer = dataSource.replace('http://', '')
+        self.dbUrl = dataSource
+
+        # remote paths to download files
+        self.remotePathTrimBitMap = '/Chips/Chip{iRoc}/TrimBitMap/TrimBitMap.root'
+        self.remotePathTBM = '/TBM/KeyValueDictPairs.json'
 
         self.queryStringFulltests = '''
 SELECT * FROM inventory_fullmodule
@@ -84,9 +81,6 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         except:
             print "could not save DB password to local file 'db.auth'"
 
-        # remote paths to download files
-        self.remotePathTrimBitMap = '/Chips/Chip{iRoc}/TrimBitMap/TrimBitMap.root'
-        self.remotePathTBM = '/TBM/KeyValueDictPairs.json'
 
         # temp folder for downloads from database
         try:
@@ -179,7 +173,7 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
 
                 dacs.append({'ROC': row['ROC_POS'], 'DACs': rocDACs})
 
-            print " -> {nDACs} DACs read for {ModuleID}".format(ModuleID=ModuleID, nDACs=nDACs)
+            print "  -> {nDACs} DACs read for {ModuleID}".format(ModuleID=ModuleID, nDACs=nDACs)
         else:
             print "ERROR: Fulltest not found"
 
@@ -259,7 +253,7 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
                             rocTrims[col * self.nRows + row] = ClonedROOTObject.GetBinContent(1 + col, 1 + row)
 
                 trims.append({'ROC': iRoc, 'Trims': rocTrims})
-            print " -> trim parameters read for {ModuleID}".format(ModuleID=ModuleID)
+            print "  -> trim parameters read for {ModuleID}".format(ModuleID=ModuleID)
         return trims
 
 
@@ -293,5 +287,19 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
             except:
                 raise NameError("TBM/KeyValueDictPairs.json: can't read TBM parameters from JSON file")
 
-            print " -> TBM parameters read for {ModuleID}".format(ModuleID=ModuleID)
+            print "  -> TBM parameters read for {ModuleID}".format(ModuleID=ModuleID)
+        else:
+            print "WARNING: no TBM data found in database, using default 160/400 phases + channel delays"
+            tbmParameters.append({'Name': 'TBMPLLDelay', 'Value': 52})
+            tbmParameters.append({'Name': 'TBMADelay', 'Value': 100})
+            tbmParameters.append({'Name': 'TBMBDelay', 'Value': 100})
+
         return tbmParameters
+
+    def getMaskBits(self, ModuleID, options={}):
+        masks = []
+        print "WARNING: reading mask bits from database is not implemented yet, using default values (unmaksed)"
+        for iRoc in range(self.nROCs):
+            rocMasks = [self.defaultMask] * self.nPix
+            masks.append({'ROC': iRoc, 'Masks': rocMasks})
+        return masks

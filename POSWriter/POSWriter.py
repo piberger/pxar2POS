@@ -14,15 +14,21 @@ class POSWriter(object):
         self.nRows = 80
         self.nCols = 52
 
-        #input file name
-        self.tbmInput = 'TBM_module_{ModulePosition}.dat'
+        # output file names
+        self.outputFileNameDAC = "ROC_DAC_module_{Position}.dat"
+        self.outputFileNameTrims = "ROC_Trims_module_{Position}.dat"
+        self.outputFileNameTBM = "TBM_module_{Position}.dat"
+        self.outputFileNameMasks = "ROC_Masks_module_{Position}.dat"
 
-        #output format
+        # output format
         self.dacFormat = '{Name}: {Value}\n'
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # write DAC file
+    # ------------------------------------------------------------------------------------------------------------------
     def writeDACs(self, ModuleID, ModulePosition, rocsData):
 
-        outputFileName = self.outputPath + "ROC_DAC_module_" + "_".join(ModulePosition) + ".dat"
+        outputFileName = self.outputPath + self.outputFileNameDAC.format(Position="_".join(ModulePosition))
 
         if len(rocsData) < 1:
             raise Exception("no ROC DAC parameters found!")
@@ -48,12 +54,15 @@ class POSWriter(object):
                     dacLine = ("%s:"%rocDAC['Name']).ljust(self.columnWidth) + rocDAC['Value'] + '\n'
                     outputFile.write(dacLine)
                 nLines = len(rocData['DACs'])
-        print " -> {nLines} parameters for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nLines=nLines, nRocs=len(rocsData), outputFileName=outputFileName)
+        print "  -> {nLines} parameters for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nLines=nLines, nRocs=len(rocsData), outputFileName=outputFileName)
         if nLines < 1:
             raise Exception("no ROC DAC parameters written!")
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # write trim bit file
+    # ------------------------------------------------------------------------------------------------------------------
     def writeTrim(self, ModuleID, ModulePosition, trimData):
-        outputFileName = self.outputPath + "ROC_Trims_module_" + "_".join(ModulePosition) + ".dat"
+        outputFileName = self.outputPath + self.outputFileNameTrims.format(Position="_".join(ModulePosition))
 
         if len(trimData) < 1:
             raise Exception("no ROCs with trimbit parameters found!")
@@ -74,21 +83,47 @@ class POSWriter(object):
                         colTrims += '%1x'%rocData['Trims'][iPix]
                     colLine = "col%02d:   %s\n"%(iCol, colTrims)
                     outputFile.write(colLine)
-        print " -> trimbits for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nRocs=len(trimData), outputFileName=outputFileName)
+        print "  -> trimbits for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nRocs=len(trimData), outputFileName=outputFileName)
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # write mask bit file
+    # ------------------------------------------------------------------------------------------------------------------
+    def writeMask(self, ModuleID, ModulePosition, maskData):
+        outputFileName = self.outputPath + self.outputFileNameMasks.format(Position="_".join(ModulePosition))
 
+        if len(maskData) < 1:
+            raise Exception("no ROCs with trimbit parameters found!")
+
+        with open(outputFileName, 'w') as outputFile:
+            for rocData in maskData:
+                rocID = rocData['ROC']
+                rocHeaderLine = 'ROC:\t ' + "_".join(ModulePosition) + self.rocSuffix % rocID + '\n'
+
+                # write header
+                outputFile.write(rocHeaderLine)
+
+                # write trim bits
+                for iCol in range(self.nCols):
+                    colMasks = ''
+                    for iRow in range(self.nRows):
+                        iPix = iCol * self.nRows + iRow
+                        colMasks += '%1x'%rocData['Masks'][iPix]
+                    colLine = "col%02d:   %s\n"%(iCol, colMasks)
+                    outputFile.write(colLine)
+        print "  -> maskbits for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nRocs=len(maskData), outputFileName=outputFileName)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # write TBM configuration files
+    # ------------------------------------------------------------------------------------------------------------------
     def writeTBM(self, ModuleID, ModulePosition, tbmData):
         modulePositionString = "_".join(ModulePosition)
-        modulePositionString += "_ROC0"
-        outputFileNameRelative = self.tbmInput.format(ModulePosition=modulePositionString)
-
-        outputFileName = self.outputPath + outputFileNameRelative
+        outputFileName = self.outputPath + self.outputFileNameTBM.format(Position=modulePositionString)
 
         if len(tbmData) < 1:
             raise Exception("no ROCs with TBM parameters found!")
 
         with open(outputFileName, 'w') as outputFile:
-            headerLine = modulePositionString + '\n'
+            headerLine = modulePositionString + '_ROC0\n' # for some reason there has to be a 'ROC0' even for TBM configuration
 
             # write header
             outputFile.write(headerLine)
@@ -96,4 +131,4 @@ class POSWriter(object):
             for tbmParameter in tbmData:
                 line = self.dacFormat.format(Name=tbmParameter['Name'], Value=tbmParameter['Value'])
                 outputFile.write(line)
-        print " -> TBM parameters written to '\x1b[34m{outputFileName}\x1b[0m'".format(outputFileName=outputFileName)
+        print "  -> TBM parameters written to '\x1b[34m{outputFileName}\x1b[0m'".format(outputFileName=outputFileName)

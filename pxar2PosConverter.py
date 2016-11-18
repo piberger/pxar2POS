@@ -1,6 +1,4 @@
-from CalibrationDataProvider.PisaDB import CalibrationDataProvider
-from CalibrationDataProvider.LocalData import CalibrationDataProvider as LocalCalibrationDataProvider
-
+from CalibrationDataProvider import CalibrationDataProviderFactory
 from ModulePositionProvider.LocalData import ModulePositionProvider
 from POSWriter.POSWriter import POSWriter
 import traceback
@@ -13,15 +11,10 @@ class pxar2POSConverter(object):
         # load module position table
         self.modulePositionTable = ModulePositionProvider(dataPath=options['ModulePositionTable'])
 
-        # module data source
+        # initialize data source
         dataSource = options['DataSource']
-        if 'http://' in dataSource:
-            dataSource = dataSource.split('http://')[1]
-            # connect to Pisa DB
-            self.dataSource = CalibrationDataProvider(dataSource=dataSource)
-        else:
-            # or fetch data locally
-            self.dataSource = LocalCalibrationDataProvider(dataSource=dataSource)
+        cdpf = CalibrationDataProviderFactory.CalibrationDataProviderFactory()
+        self.dataSource = cdpf.init(dataSource)
 
         # initialize pixel online format writer
         self.posWriter = POSWriter(outputPath=options['OutputPath'])
@@ -50,10 +43,28 @@ class pxar2POSConverter(object):
         return self.interpolateLinear(dacValueLow, dacValueHigh, temperature, temperatureLow, temperatureHigh)
 
 
+    def verifyModuleID(self, moduleID):
+        good = True
+        if not moduleID.startswith('M'):
+            print "\x1b[31m -> module ID does not start with an M\x1b[0m"
+            good = False
+
+        if len(moduleID) != 5:
+            print "\x1b[31m -> module ID does not have the correct length\x1b[0m"
+            good = False
+
+        if good:
+            print " -> module ID is valid"
+
+        return good
+
     def convertModuleData(self, moduleID, testOptions):
 
+        # verify if ID is correct
+        self.verifyModuleID(moduleID)
+
         # get module position in detector
-        #     B/F      O/I    sector  layer   ladder   pos
+        #     B/F      O/I    sector  layer   ladder   pos(inner=MOD1, outer=MOD4)
         #  -> ['BPix', 'BmO', 'SEC1', 'LYR2', 'LDR1H', 'MOD4']
         modulePosition = self.modulePositionTable.getModulePosition(moduleID)
 
@@ -81,6 +92,7 @@ class pxar2POSConverter(object):
             self.printError("could not read DAC parameters", traceback.format_exc())
             errorsOccurred += 1
 
+        # do temperature interpolation
         nDacsInterpolated = 0
         try:
             if temperatureInterpolation:
@@ -129,10 +141,10 @@ class pxar2POSConverter(object):
         # trimbits
         try:
             # read trimbits
-            rocTrimbits = self.dataSource.getTrimBits(ModuleID=moduleID, options=testOptions)
+            moduleTrimbits = self.dataSource.getTrimBits(ModuleID=moduleID, options=testOptions)
 
             # write trimbits
-            self.posWriter.writeTrim(moduleID, modulePosition, rocTrimbits)
+            self.posWriter.writeTrim(moduleID, modulePosition, moduleTrimbits)
         except Exception as e:
             self.printError("could not read/write trimbits", traceback.format_exc())
             errorsOccurred += 1
@@ -146,6 +158,17 @@ class pxar2POSConverter(object):
             self.posWriter.writeTBM(moduleID, modulePosition, tbmParameters)
         except Exception as e:
             self.printError("could not read/write TBM parameters", traceback.format_exc())
+            errorsOccurred += 1
+
+        # mask bits
+        try:
+            # read maskbits
+            moduleMaskbits = self.dataSource.getMaskBits(ModuleID=moduleID, options=testOptions)
+
+            # write maskbits
+            self.posWriter.writeMask(moduleID, modulePosition, moduleMaskbits)
+        except Exception as e:
+            self.printError("could not read/write maskbits", traceback.format_exc())
             errorsOccurred += 1
 
 

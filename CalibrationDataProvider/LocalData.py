@@ -5,12 +5,9 @@ import os
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
     def __init__(self, dataSource = ""):
+        super(CalibrationDataProvider, self).__init__()
+
         self.dataPath = dataSource
-        self.nROCs = 16
-        self.nRows = 80
-        self.nCols = 52
-        self.nPix = self.nRows * self.nCols
-        self.defaultTrim = 15
         self.dacTable = {
             'vdig': 'Vdd',
             'vana': 'Vana',
@@ -47,7 +44,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         folders.sort()
         if len(folders) > 1:
             print "more than one folder found, using first one:"
-            print " ->", folders[0]
+            print "  ->", folders[0]
 
         return folders[0] if folders and len(folders) > 0 else None
 

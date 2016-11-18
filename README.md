@@ -25,12 +25,17 @@ show all available command line options:
 write FT at -20 parameters trimmed to 35 to default output folder:
 ./pxar2POS.py -m M2222
 
-get parameters for module M2222 from first FT at -20, trimmed to 35:
+get parameters for module M2222 from first fulltest at -20, trimmed to 35:
 ./pxar2POS.py -m M2222 -T 35 -t m20_1 -o Parameters_m20_trim35/
 
 get untrimmed parameters at +17:
 ./pxar2POS.py -m M2222 -T -1 -t p17 -o Parameters_p17_untrimmed/
 
-interpolate DACs linearly between -20 and +17 ----> +8 degrees and save in dedicated folder:
+interpolate DACs linearly between -20 and +17 ----> to +8 degrees and save in dedicated folder:
 ./pxar2POS.py -m M2222 -t p8 -o Parameters_p8/
 
+get configuration from MySQL DB running at localhost
+./pxar2POS.py -m M2222 -s http://127.0.0.1
+
+create default configuration for a module which does not exist in DB
+./pxar2POS.py -m M9999 -s default
