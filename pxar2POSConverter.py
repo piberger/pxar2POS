@@ -84,10 +84,10 @@ class pxar2POSConverter(object):
         # read DAC parameters
         try:
             if temperatureInterpolation:
-                testOptions['tempnominal'] = 'm20_1'
-                rocDACsLow = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
                 testOptions['tempnominal'] = 'p17_1'
                 rocDACsHigh = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
+                testOptions['tempnominal'] = 'm20_1'
+                rocDACsLow = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
             else:
                 rocDACs = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
         except Exception as e:

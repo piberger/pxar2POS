@@ -39,6 +39,14 @@ SELECT * FROM inventory_fullmodule
 WHERE inventory_fullmodule.FULLMODULE_ID = %s AND tempnominal LIKE %s LIMIT 10;
         '''
 
+        self.queryStringReceptions = '''
+        SELECT * FROM inventory_fullmodule
+          JOIN test_fullmodulesummary ON test_fullmodulesummary.TEST_ID = LASTTEST_RECEPTION
+          JOIN test_fullmodule ON test_fullmodule.SUMMARY_ID = LASTTEST_RECEPTION
+          JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
+        WHERE inventory_fullmodule.FULLMODULE_ID = %s LIMIT 10;
+                '''
+
         self.queryStringFulltestDacs = '''
 SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_VALUE = %s ORDER BY ROC_POS LIMIT 16;
         '''
@@ -135,6 +143,25 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         return row
 
 
+    def getReceptionRow(self, ModuleID, tempnominal):
+
+        cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+
+        # get list of fulltests
+        cursor.execute(self.queryStringReceptions, (ModuleID,))
+        self.db.commit()
+        rows = cursor.fetchall()
+        if len(rows) < 1:
+            print "\x1b[31mERROR: no Rception tests found for tempnominal=", tempnominal,"\x1b[0m"
+            return None
+
+        if len(rows) > 1:
+            print "WARNING: multiple Rception tests found for tempnominal=", tempnominal, " using the first one"
+
+        row = rows[0] # take first one
+        return row
+
+
     def getRocDacs(self, ModuleID, options = {}):
 
         # initialize
@@ -202,6 +229,32 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
             if len(rows) > 0:
                 remoteModuleDataPath = self.dbUrl + rows[0]['PFNs'].replace('file:', '')
                 print "  -> remote path: ", remoteModuleDataPath
+                return remoteModuleDataPath
+        else:
+            return None
+
+
+    def getRemoteResultsPathReception(self, ModuleID, options={}):
+
+        # initialize
+        tempnominal = options['tempnominal'] if 'tempnominal' in options else 'm20_1'
+
+        # get fulltest analysis ID and data ID
+        row = self.getReceptionRow(ModuleID, tempnominal)
+
+        if row:
+            dataId = row['test_fullmoduleanalysis.DATA_ID']
+            print "  -> Fulltest analysis ID: ", row['LASTANALYSIS_ID']
+            print "  -> data ID: ", dataId
+
+            # get remote data path for the data ID
+            cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+            cursor.execute(self.queryStringFulltestData, (dataId, ))
+            self.db.commit()
+            rows = cursor.fetchall()
+            if len(rows) > 0:
+                remoteModuleDataPath = self.dbUrl + rows[0]['PFNs'].replace('file:', '')
+                print "  -> reception remote path: ", remoteModuleDataPath
                 return remoteModuleDataPath
         else:
             return None
@@ -328,6 +381,24 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
                 except:
                     print "\x1b[31mERROR: failed to load data from JSON file %s\x1b[31m"%localFileName
 
+                # check if readback has been calibrated in FullQualification
+                if data and 'ReadbackCalibrated' in data and data['ReadbackCalibrated']['Value'].lower().strip() != 'true':
+                    print "INFO: readback not calibrated flag has been set for this module - reception test results will be used."
+
+                    # try to obtain calibration constants from Reception test (always at +17)
+                    remoteModuleDataPathReception = self.getRemoteResultsPathReception(ModuleID=ModuleID, options=options)
+
+                    if remoteModuleDataPathReception:
+                        urllib.urlretrieve(remoteModuleDataPathReception + remoteFileName, localFileName)
+
+                        try:
+                            with open(localFileName) as data_file:
+                                data = json.load(data_file)
+                            print "INFO: Reception test found!"
+                        except:
+                            print "\x1b[31mERROR: failed to load data from JSON file %s (reception test)\x1b[31m" % localFileName
+                    else:
+                        print "\x1b[31mERROR: no Reception test found for this module!\x1b[0m"
 
                 if data:
                     for readbackParameter in self.readbackParameters:
@@ -335,7 +406,7 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
                             parameterValue = float(data[readbackParameter]['Value'])
                         except:
                             print "\x1b[31mERROR: failed to extract parameter '%s' for ROC%d from JSON file %s -> setting it to 0!\x1b[31m" % (readbackParameter, iRoc, localFileName)
-                            parameterValue = '0'
+                            parameterValue = 0
                         readbackCalibrationRoc.append({'Name': readbackParameter, 'Value': parameterValue})
 
                 readbackCalibration.append({'ROC': iRoc, 'ReadbackCalibration': readbackCalibrationRoc})
