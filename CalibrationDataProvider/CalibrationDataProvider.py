@@ -11,6 +11,10 @@ class AbstractCalibrationDataProvider(object):
         self.defaultTrim = 15
         self.defaultMask = 0
 
+        # readback parameters to extract
+        self.readbackParameters = ['par0vd', 'par1vd', 'par0va', 'par1va', 'par0rbia', 'par1rbia', 'par0tbia',
+                                   'par1tbia', 'par2tbia', 'par0ia', 'par1ia', 'par2ia']
+
     def getRocDacs(self, ModuleID, options = {}):
         raise NotImplementedError('getRocDacs() not implemented!')
 
@@ -22,3 +26,6 @@ class AbstractCalibrationDataProvider(object):
 
     def getMaskBits(self, ModuleID, options = {}):
         raise NotImplementedError('getMaskBits() not implemented!')
+
+    def getReadbackCalibration(self, ModuleID, options = {}):
+        raise NotImplementedError('getReadbackCalibration() not implemented!')

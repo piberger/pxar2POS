@@ -29,6 +29,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         # remote paths to download files
         self.remotePathTrimBitMap = '/Chips/Chip{iRoc}/TrimBitMap/TrimBitMap.root'
         self.remotePathTBM = '/TBM/KeyValueDictPairs.json'
+        self.remotePathReadbackJson = '/Chips/Chip{iRoc}/ReadbackCal/KeyValueDictPairs.json'
 
         self.queryStringFulltests = '''
 SELECT * FROM inventory_fullmodule
@@ -303,3 +304,39 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
             rocMasks = [self.defaultMask] * self.nPix
             masks.append({'ROC': iRoc, 'Masks': rocMasks})
         return masks
+
+    def getReadbackCalibration(self, ModuleID, options = {}):
+        readbackCalibration = []
+
+        # get readback calibration from database fulltest results
+        remoteModuleDataPath = self.getRemoteResultsPath(ModuleID=ModuleID, options=options)
+        if remoteModuleDataPath:
+            for iRoc in range(self.nROCs):
+                remoteFileName = self.remotePathReadbackJson.format(iRoc=iRoc)
+                localFileName = 'temp/%s_ReadbackCalibration_ROC%d.json'%(ModuleID, iRoc)
+                urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
+
+                readbackCalibrationRoc = []
+
+                if not os.path.isfile(localFileName):
+                    print "\x1b[31mERROR: failed to download to JSON file %s\x1b[31m"%localFileName
+
+                data = None
+                try:
+                    with open(localFileName) as data_file:
+                        data = json.load(data_file)
+                except:
+                    print "\x1b[31mERROR: failed to load data from JSON file %s\x1b[31m"%localFileName
+
+
+                if data:
+                    for readbackParameter in self.readbackParameters:
+                        try:
+                            parameterValue = float(data[readbackParameter]['Value'])
+                        except:
+                            print "\x1b[31mERROR: failed to extract parameter '%s' for ROC%d from JSON file %s -> setting it to 0!\x1b[31m" % (readbackParameter, iRoc, localFileName)
+                            parameterValue = '0'
+                        readbackCalibrationRoc.append({'Name': readbackParameter, 'Value': parameterValue})
+
+                readbackCalibration.append({'ROC': iRoc, 'ReadbackCalibration': readbackCalibrationRoc})
+        return readbackCalibration

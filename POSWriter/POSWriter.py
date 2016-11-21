@@ -7,10 +7,6 @@ class POSWriter(object):
         self.rocSuffix = '_ROC%d'
         pathParts = outputPath.replace('\\','/').split('/')
         self.outputPath = os.path.join(*pathParts) + '/'
-        try:
-            os.mkdir(self.outputPath)
-        except:
-            pass
         self.nRows = 80
         self.nCols = 52
 
@@ -19,10 +15,17 @@ class POSWriter(object):
         self.outputFileNameTrims = "ROC_Trims_module_{Position}.dat"
         self.outputFileNameTBM = "TBM_module_{Position}.dat"
         self.outputFileNameMasks = "ROC_Masks_module_{Position}.dat"
+        self.outputFileNameReadback = "ROC_Iana_{Position}.dat"
 
         # output format
         self.dacFormat = '{Name}: {Value}\n'
+        self.readbackFormat = '{Name}: {Value:.6f}\n'
 
+        # initialize output directory
+        try:
+            os.mkdir(self.outputPath)
+        except:
+            pass
     # ------------------------------------------------------------------------------------------------------------------
     # write DAC file
     # ------------------------------------------------------------------------------------------------------------------
@@ -132,3 +135,41 @@ class POSWriter(object):
                 line = self.dacFormat.format(Name=tbmParameter['Name'], Value=tbmParameter['Value'])
                 outputFile.write(line)
         print "  -> TBM parameters written to '\x1b[34m{outputFileName}\x1b[0m'".format(outputFileName=outputFileName)
+
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # write Readback calibration files
+    # ------------------------------------------------------------------------------------------------------------------
+    def writeReadback(self, ModuleID, ModulePosition, readbackData):
+        modulePositionString = "_".join(ModulePosition)
+        outputFileName = self.outputPath + self.outputFileNameReadback.format(Position=modulePositionString)
+
+        if len(readbackData) < 1:
+            raise Exception("no ROCs with calibrated readback found!")
+
+        with open(outputFileName, 'w') as outputFile:
+            nLines = 0
+            for rocData in readbackData:
+                rocID = rocData['ROC']
+                rocHeaderLine = 'ROC:'.ljust(self.columnWidth) + "_".join(ModulePosition) + self.rocSuffix % rocID + '\n'
+
+                # write header
+                outputFile.write(rocHeaderLine)
+
+                # sort readback calibration constants
+                readbackParameters = rocData['ReadbackCalibration']
+                readbackParametersOrder = ['par0vd', 'par1vd', 'par0va', 'par1va', 'par0rbia', 'par1rbia', 'par0tbia',
+                                   'par1tbia', 'par2tbia', 'par0ia', 'par1ia', 'par2ia']
+                readbackParameters.sort(key=lambda par: readbackParametersOrder.index(par['Name']) if par['Name'] in readbackParametersOrder else 999)
+
+                # write readback calibration constants
+                for readbackParameter in readbackParameters:
+                    parLine = self.readbackFormat.format(Name=readbackParameter['Name'], Value=readbackParameter['Value'])
+                    outputFile.write(parLine)
+
+                nLines = len(readbackParameters)
+        message = "  -> {nLines} readback parameters for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'"
+        print message.format(nLines=nLines, nRocs=len(readbackData), outputFileName=outputFileName)
+
+        if nLines < 1:
+            raise Exception("no ROC readback parameters written!")

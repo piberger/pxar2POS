@@ -26,6 +26,7 @@ class pxar2POSConverter(object):
         else:
             print "\x1b[31mERROR: %s\x1b[0m"%errorMessage.strip()
 
+
     # simple linear DAC interpolation
     def interpolateLinear(self, dacValueLow, dacValueHigh, temperature, temperatureLow=-20, temperatureHigh=17):
         deltaY = dacValueHigh - dacValueLow
@@ -57,6 +58,7 @@ class pxar2POSConverter(object):
             print " -> module ID is valid"
 
         return good
+
 
     def convertModuleData(self, moduleID, testOptions):
 
@@ -171,6 +173,16 @@ class pxar2POSConverter(object):
             self.printError("could not read/write maskbits", traceback.format_exc())
             errorsOccurred += 1
 
+        # readback
+        try:
+            # read readback
+            moduleReadback = self.dataSource.getReadbackCalibration(ModuleID=moduleID, options=testOptions)
+
+            # write readback
+            self.posWriter.writeReadback(moduleID, modulePosition, moduleReadback)
+        except Exception as e:
+            self.printError("could not read/write readback calibration constants", traceback.format_exc())
+            errorsOccurred += 1
 
         if errorsOccurred < 1:
             print " --> done."
