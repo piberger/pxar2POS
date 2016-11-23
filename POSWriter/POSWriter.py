@@ -21,6 +21,15 @@ class POSWriter(object):
         self.dacFormat = '{Name}: {Value}\n'
         self.readbackFormat = '{Name}: {Value:.6f}\n'
 
+        # define the order in which DAC parameters are written
+        self.rocDACOrder = ['Vdd', 'Vana', 'Vsh', 'Vcomp', 'VwllPr', 'VwllSh', 'VHldDel', 'Vtrim', 'VcThr',
+                       'VIbias_bus', 'PHOffset', 'Vcomp_ADC', 'PHScale', 'VIColOr', 'Vcal', 'CalDel',
+                       'TempRange', 'WBC', 'ChipContReg', 'Readback']
+
+        # define the order in which readback calibration constants are written
+        self.readbackParametersOrder = ['par0vd', 'par1vd', 'par0va', 'par1va', 'par0rbia', 'par1rbia', 'par0tbia',
+                                   'par1tbia', 'par2tbia', 'par0ia', 'par1ia', 'par2ia']
+
         # initialize output directory
         try:
             os.mkdir(self.outputPath)
@@ -47,10 +56,8 @@ class POSWriter(object):
 
                 # sort DACs
                 rocDACs = rocData['DACs']
-                rocDACOrder = ['Vdd', 'Vana', 'Vsh', 'Vcomp', 'VwllPr', 'VwllSh', 'VHldDel', 'Vtrim', 'VcThr',
-                               'VIbias_bus', 'PHOffset', 'Vcomp_ADC', 'PHScale', 'VIColOr', 'Vcal', 'CalDel',
-                               'TempRange', 'WBC', 'ChipContReg', 'Readback']
-                rocDACs.sort(key=lambda dac: rocDACOrder.index(dac['Name']) if dac['Name'] in rocDACOrder else 999)
+
+                rocDACs.sort(key=lambda dac: self.rocDACOrder.index(dac['Name']) if dac['Name'] in self.rocDACOrder else 999)
 
                 # write DACs
                 for rocDAC in rocData['DACs']:
@@ -136,7 +143,6 @@ class POSWriter(object):
                 outputFile.write(line)
         print "  -> TBM parameters written to '\x1b[34m{outputFileName}\x1b[0m'".format(outputFileName=outputFileName)
 
-
     # ------------------------------------------------------------------------------------------------------------------
     # write Readback calibration files
     # ------------------------------------------------------------------------------------------------------------------
@@ -158,9 +164,7 @@ class POSWriter(object):
 
                 # sort readback calibration constants
                 readbackParameters = rocData['ReadbackCalibration']
-                readbackParametersOrder = ['par0vd', 'par1vd', 'par0va', 'par1va', 'par0rbia', 'par1rbia', 'par0tbia',
-                                   'par1tbia', 'par2tbia', 'par0ia', 'par1ia', 'par2ia']
-                readbackParameters.sort(key=lambda par: readbackParametersOrder.index(par['Name']) if par['Name'] in readbackParametersOrder else 999)
+                readbackParameters.sort(key=lambda par: self.readbackParametersOrder.index(par['Name']) if par['Name'] in self.readbackParametersOrder else 999)
 
                 # write readback calibration constants
                 for readbackParameter in readbackParameters:

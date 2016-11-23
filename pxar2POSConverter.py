@@ -37,13 +37,13 @@ class pxar2POSConverter(object):
             print "  low:", dacValueLow, " high:", dacValueHigh, " -> ",interpolatedValue
         return interpolatedValue
 
-
+    # DAC interpolation between -20 and +17 to given temperature
     def interpolateDAC(self, dacName, dacValueLow, dacValueHigh, temperature, temperatureLow=-20, temperatureHigh=17):
         if self.verbose:
             print "interpolate DAC:", dacName
         return self.interpolateLinear(dacValueLow, dacValueHigh, temperature, temperatureLow, temperatureHigh)
 
-
+    # checks if module ID has correct format
     def verifyModuleID(self, moduleID):
         good = True
         if not moduleID.startswith('M'):
@@ -80,6 +80,10 @@ class pxar2POSConverter(object):
         if 'tempnominal' in testOptions and testOptions['tempnominal'][0:3] not in ['m20', 'p17']:
             interpolationTemperature = float(testOptions['tempnominal'].replace('m', '-').replace('p', ''))
             temperatureInterpolation = True
+
+        # ------------------------------------------------------------------------------------------------------------------
+        # DAC parameters
+        # ------------------------------------------------------------------------------------------------------------------
 
         # read DAC parameters
         try:
@@ -140,7 +144,9 @@ class pxar2POSConverter(object):
             self.printError("could not write DAC parameters", traceback.format_exc())
             errorsOccurred += 1
 
+        # ------------------------------------------------------------------------------------------------------------------
         # trimbits
+        # ------------------------------------------------------------------------------------------------------------------
         try:
             # read trimbits
             moduleTrimbits = self.dataSource.getTrimBits(ModuleID=moduleID, options=testOptions)
@@ -151,7 +157,9 @@ class pxar2POSConverter(object):
             self.printError("could not read/write trimbits", traceback.format_exc())
             errorsOccurred += 1
 
+        # ------------------------------------------------------------------------------------------------------------------
         # TBM parameters
+        # ------------------------------------------------------------------------------------------------------------------
         try:
             # read TBM parameters
             tbmParameters = self.dataSource.getTbmParameters(ModuleID=moduleID, options=testOptions)
@@ -162,7 +170,9 @@ class pxar2POSConverter(object):
             self.printError("could not read/write TBM parameters", traceback.format_exc())
             errorsOccurred += 1
 
+        # ------------------------------------------------------------------------------------------------------------------
         # mask bits
+        # ------------------------------------------------------------------------------------------------------------------
         try:
             # read maskbits
             moduleMaskbits = self.dataSource.getMaskBits(ModuleID=moduleID, options=testOptions)
@@ -173,7 +183,9 @@ class pxar2POSConverter(object):
             self.printError("could not read/write maskbits", traceback.format_exc())
             errorsOccurred += 1
 
+        # ------------------------------------------------------------------------------------------------------------------
         # readback
+        # ------------------------------------------------------------------------------------------------------------------
         try:
             # read readback
             moduleReadback = self.dataSource.getReadbackCalibration(ModuleID=moduleID, options=testOptions)
