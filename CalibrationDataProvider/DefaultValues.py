@@ -72,3 +72,23 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
             masks.append({'ROC': iRoc, 'Masks': rocMasks})
         print "  -> created list of default maskbits(=%d) for %d ROCs"%(self.defaultMask, self.nROCs)
         return masks
+
+
+    # default readback calibration
+    #  mean values from 4272 ROCs from L2 module qualification, 23.11.2016
+    def getTbmParameters(self, ModuleID, options={}):
+        readbackParameters = [
+            {'Name': 'par0vd', 'Value': -3.009},       # rms = 5.55
+            {'Name': 'par1vd', 'Value': 64.55},        # rms = 3.33
+            {'Name': 'par0va', 'Value': -1.72},        # rms = 3.67
+            {'Name': 'par1va', 'Value': 64.15},        # rms = 4.98
+            {'Name': 'par0rbia', 'Value': 11.49},      # rms = 2.69
+            {'Name': 'par1rbia', 'Value': 1.072},      # rms = 0.03
+            {'Name': 'par0tbia', 'Value': 4.466},      # rms = 0.44
+            {'Name': 'par1tbia', 'Value': 0.2543},     # rms = 0.02
+            {'Name': 'par2tbia', 'Value': -2.036e-4},  # rms = 4.4e-5
+            {'Name': 'par0ia', 'Value': -4.597},       # rms = 3.17
+            {'Name': 'par1ia', 'Value': 3.725},        # rms = 0.55
+            {'Name': 'par2ia', 'Value': 0.0247},       # rms = 0.0007
+        ]
+        return readbackParameters
