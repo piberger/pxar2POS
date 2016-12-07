@@ -388,7 +388,7 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
 
     def getMaskBits(self, ModuleID, options={}):
         masks = []
-        print "WARNING: reading mask bits from database is not implemented yet, using default values (unmaksed)"
+        print "WARNING: reading mask bits from database is not implemented yet, using default values (unmasked)"
         for iRoc in range(self.nROCs):
             rocMasks = [self.defaultMask] * self.nPix
             masks.append({'ROC': iRoc, 'Masks': rocMasks})

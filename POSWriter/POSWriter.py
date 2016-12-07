@@ -2,7 +2,13 @@ import os
 
 class POSWriter(object):
 
-    def __init__(self, outputPath = ""):
+    def __init__(self, outputPath = "", configurationID = -1):
+
+        try:
+            self.configurationID = int(configurationID)
+        except:
+            self.configurationID = -1
+
         self.columnWidth = 15
         self.rocSuffix = '_ROC%d'
         pathParts = outputPath.replace('\\','/').split('/')
@@ -11,11 +17,30 @@ class POSWriter(object):
         self.nCols = 52
 
         # output file names
-        self.outputFileNameDAC = "ROC_DAC_module_{Position}.dat"
-        self.outputFileNameTrims = "ROC_Trims_module_{Position}.dat"
-        self.outputFileNameTBM = "TBM_module_{Position}.dat"
-        self.outputFileNameMasks = "ROC_Masks_module_{Position}.dat"
-        self.outputFileNameReadback = "ROC_Iana_{Position}.dat"
+        if self.configurationID < 0:
+            self.outputFileNameDAC = "ROC_DAC_module_{Position}.dat"
+            self.outputFileNameTrims = "ROC_Trims_module_{Position}.dat"
+            self.outputFileNameTBM = "TBM_module_{Position}.dat"
+            self.outputFileNameMasks = "ROC_Masks_module_{Position}.dat"
+            self.outputFileNameReadback = "ROC_Iana_{Position}.dat"
+        else:
+
+            # create output subfolders if necessary
+            for folderName in ['dac', 'tbm', 'iana', 'mask', 'trim']:
+                try:
+                    os.mkdir(self.outputPath + '/%s'%folderName)
+                except:
+                    pass
+                try:
+                    os.mkdir(self.outputPath + '/%s/%d'%(folderName, self.configurationID))
+                except:
+                    pass
+
+            self.outputFileNameDAC = "dac/%d/ROC_DAC_module_{Position}.dat"%self.configurationID
+            self.outputFileNameTrims = "trim/%d/ROC_Trims_module_{Position}.dat"%self.configurationID
+            self.outputFileNameTBM = "tbm/%d/TBM_module_{Position}.dat"%self.configurationID
+            self.outputFileNameMasks = "mask/%d/ROC_Masks_module_{Position}.dat"%self.configurationID
+            self.outputFileNameReadback = "iana/%d/ROC_Iana_{Position}.dat"%self.configurationID
 
         # output format
         self.dacFormat = '{Name}: {Value}\n'

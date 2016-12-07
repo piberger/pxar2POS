@@ -6,7 +6,8 @@ import traceback
 class pxar2POSConverter(object):
 
     def __init__(self, options = {}):
-        self.verbose = 'verbose' in options and options['verbose']
+        self.verbose = 'Verbose' in options and options['Verbose']
+        self.configurationID = options['ConfigurationID'] if 'ConfigurationID' in options else -1
 
         # load module position table
         self.modulePositionTable = ModulePositionProvider(dataPath=options['ModulePositionTable'])
@@ -17,7 +18,7 @@ class pxar2POSConverter(object):
         self.dataSource = cdpf.init(dataSource, self.verbose)
 
         # initialize pixel online format writer
-        self.posWriter = POSWriter(outputPath=options['OutputPath'])
+        self.posWriter = POSWriter(outputPath=options['OutputPath'], configurationID=self.configurationID)
 
 
     def printError(self, errorMessage, tracebackMsg = None):

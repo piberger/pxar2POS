@@ -74,6 +74,9 @@ parser.add_argument('-s', '--source', dest='source',
 parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                     help='verbose output',
                     default=config.get('Global', 'Verbose') == 1)
+parser.add_argument('-i', '--configuration-id', dest='configuration_id',
+                    help='temperature',
+                    default=config.get('Global', 'ConfigurationId'))
 
 args = parser.parse_args()
 
@@ -82,6 +85,10 @@ if len(args.module.strip()) < 1:
     exit(0)
 
 # show summary of parameters
+if args.configuration_id < 0:
+    print "  -> NO configuration id specified (with -i), saving all files directly into the output folder"
+else:
+    print "  -> configuration ID: ", args.configuration_id
 print "  -> module:", args.module
 print "  -> trim:", args.trim
 print "  -> temperature:", args.temp
@@ -98,7 +105,8 @@ converter = pxar2POSConverter(
         'ModulePositionTable': args.positions,
         'DataSource': args.source,
         'OutputPath': args.output,
-        'verbose': args.verbose,
+        'Verbose': args.verbose,
+        'ConfigurationID': args.configuration_id,
     }
 )
 
