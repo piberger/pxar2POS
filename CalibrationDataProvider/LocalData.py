@@ -4,7 +4,7 @@ import os
 
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
-    def __init__(self, dataSource = ""):
+    def __init__(self, dataSource="", verbose=False):
         super(CalibrationDataProvider, self).__init__()
 
         self.dataPath = dataSource

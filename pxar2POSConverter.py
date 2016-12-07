@@ -6,7 +6,7 @@ import traceback
 class pxar2POSConverter(object):
 
     def __init__(self, options = {}):
-        self.verbose = False
+        self.verbose = 'verbose' in options and options['verbose']
 
         # load module position table
         self.modulePositionTable = ModulePositionProvider(dataPath=options['ModulePositionTable'])
@@ -14,7 +14,7 @@ class pxar2POSConverter(object):
         # initialize data source
         dataSource = options['DataSource']
         cdpf = CalibrationDataProviderFactory.CalibrationDataProviderFactory()
-        self.dataSource = cdpf.init(dataSource)
+        self.dataSource = cdpf.init(dataSource, self.verbose)
 
         # initialize pixel online format writer
         self.posWriter = POSWriter(outputPath=options['OutputPath'])
@@ -35,12 +35,17 @@ class pxar2POSConverter(object):
         interpolatedValue = m * (temperature - temperatureLow) + dacValueLow
         if self.verbose:
             print "  low:", dacValueLow, " high:", dacValueHigh, " -> ",interpolatedValue
+        if interpolatedValue < 0:
+            interpolatedValue = 0
+        if interpolatedValue > 255:
+            interpolatedValue = 255
+
         return interpolatedValue
 
     # DAC interpolation between -20 and +17 to given temperature
     def interpolateDAC(self, dacName, dacValueLow, dacValueHigh, temperature, temperatureLow=-20, temperatureHigh=17):
         if self.verbose:
-            print "interpolate DAC:", dacName
+            print "interpolate DAC:", dacName,
         return self.interpolateLinear(dacValueLow, dacValueHigh, temperature, temperatureLow, temperatureHigh)
 
     # checks if module ID has correct format
@@ -56,6 +61,8 @@ class pxar2POSConverter(object):
 
         if good:
             print " -> module ID is valid"
+            if moduleID.upper().startswith('M1'):
+                print " -> module is a L1 module with 2 TBMs"
 
         return good
 
@@ -107,6 +114,8 @@ class pxar2POSConverter(object):
                 for rocDACsRocLow in rocDACsLow:
                     rocDACsRoc = []
                     rocPos = rocDACsRocLow['ROC']
+                    if self.verbose:
+                        print "    -> ROC ", rocPos
                     for dacTuple in rocDACsRocLow['DACs']:
 
                         # low T DAC value

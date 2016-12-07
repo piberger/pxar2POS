@@ -3,8 +3,9 @@ import os
 
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
-    def __init__(self, dataSource = None):
+    def __init__(self, dataSource=None, verbose=False):
         super(CalibrationDataProvider, self).__init__()
+        self.verbose = verbose
 
     # initialize DACs with default value
     def getRocDacs(self, ModuleID, options = {}):
@@ -62,7 +63,12 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
             {'Name': 'TBMADelay', 'Value': 100},
             {'Name': 'TBMBDelay', 'Value': 100},
         ]
-        return tbmParameters
+
+        if ModuleID.upper().startswith('M1'):
+            # just duplicate
+            return [tbmParameters, tbmParameters]
+        else:
+            return tbmParameters
 
     # default mask bits, 0=unmasked, 1=masked
     def getMaskBits(self, ModuleID, options={}):
@@ -75,20 +81,24 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
 
     # default readback calibration
-    #  mean values from 4272 ROCs from L2 module qualification, 23.11.2016
-    def getTbmParameters(self, ModuleID, options={}):
+    #  mean values and uncertainties (RMS) from 4272 ROCs from L2 module qualification, 23.11.2016
+    def getReadbackCalibration(self, ModuleID, options={}):
         readbackParameters = [
-            {'Name': 'par0vd', 'Value': -3.009},       # rms = 5.55
-            {'Name': 'par1vd', 'Value': 64.55},        # rms = 3.33
-            {'Name': 'par0va', 'Value': -1.72},        # rms = 3.67
-            {'Name': 'par1va', 'Value': 64.15},        # rms = 4.98
-            {'Name': 'par0rbia', 'Value': 11.49},      # rms = 2.69
-            {'Name': 'par1rbia', 'Value': 1.072},      # rms = 0.03
-            {'Name': 'par0tbia', 'Value': 4.466},      # rms = 0.44
-            {'Name': 'par1tbia', 'Value': 0.2543},     # rms = 0.02
-            {'Name': 'par2tbia', 'Value': -2.036e-4},  # rms = 4.4e-5
-            {'Name': 'par0ia', 'Value': -4.597},       # rms = 3.17
-            {'Name': 'par1ia', 'Value': 3.725},        # rms = 0.55
-            {'Name': 'par2ia', 'Value': 0.0247},       # rms = 0.0007
+            {'Name': 'par0vd', 'Value': -3.009, 'Uncertainty': 5.55},
+            {'Name': 'par1vd', 'Value': 64.55, 'Uncertainty': 3.33},
+            {'Name': 'par0va', 'Value': -1.72, 'Uncertainty': 3.67},
+            {'Name': 'par1va', 'Value': 64.15, 'Uncertainty': 4.98},
+            {'Name': 'par0rbia', 'Value': 11.49, 'Uncertainty': 2.69},
+            {'Name': 'par1rbia', 'Value': 1.072, 'Uncertainty': 0.03},
+            {'Name': 'par0tbia', 'Value': 4.466, 'Uncertainty': 0.44},
+            {'Name': 'par1tbia', 'Value': 0.2543, 'Uncertainty': 0.02},
+            {'Name': 'par2tbia', 'Value': -2.036e-4, 'Uncertainty': 4.4e-5},
+            {'Name': 'par0ia', 'Value': -4.597, 'Uncertainty': 3.17},
+            {'Name': 'par1ia', 'Value': 3.725, 'Uncertainty': 0.55},
+            {'Name': 'par2ia', 'Value': 0.0247, 'Uncertainty': 0.0007},
         ]
-        return readbackParameters
+        if self.verbose:
+            for p in readbackParameters:
+                print "    -> {Name: <10}{Value:0.3e}+/-{Uncertainty:0.1e}".format(Name=p['Name'], Value=p['Value'], Uncertainty=p['Uncertainty'])
+        readbackParametersModule = [{'ROC': i, 'ReadbackCalibration': readbackParameters} for i in range(16)]
+        return readbackParametersModule

@@ -18,8 +18,10 @@ except:
 
 class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
-    def __init__(self, dataSource = None):
+    def __init__(self, dataSource=None, verbose=False):
         super(CalibrationDataProvider, self).__init__()
+
+        self.verbose = verbose
 
         # database url
         self.dataPath = dataSource
@@ -200,8 +202,15 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
                     rocDACs.append({'Name': 'Readback', 'Value': '1'})
 
                 dacs.append({'ROC': row['ROC_POS'], 'DACs': rocDACs})
-
+                if self.verbose:
+                    try:
+                        print "    -> ROC", row['ROC_POS']
+                        for i in rocDACs:
+                            print "      -> DAC: {DAC: <13}{Value: <10}".format(DAC=i['Name'], Value=i['Value'])
+                    except:
+                        pass
             print "  -> {nDACs} DACs read for {ModuleID}".format(ModuleID=ModuleID, nDACs=nDACs)
+
         else:
             print "ERROR: Fulltest not found"
 
@@ -311,7 +320,19 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         return trims
 
 
-    def getTbmParameters(self, ModuleID, options={}):
+    def getFormattedTbmParameter(self, data, tbmId, tbmCore, tbmRegister):
+        try:
+            tbmParameterValue = int(data['Core{tbmId}{tbmCore}_{tbmRegister}'.format(tbmId=tbmId, tbmCore=tbmCore, tbmRegister=tbmRegister)]['Value'].replace('0x', ''), 16)
+
+            if self.verbose:
+                print '    -> TBM: Core{tbmId}{tbmCore}_{tbmRegister} = {value}'.format(tbmId=tbmId, tbmCore=tbmCore, tbmRegister=tbmRegister, value=tbmParameterValue)
+
+            return tbmParameterValue
+        except:
+            raise NameError("TBM/KeyValueDictPairs.json: can't read TBM parameters from JSON file: Core{tbmId}{tbmCore}_{tbmRegister}".format(tbmId=tbmId, tbmCore=tbmCore, tbmRegister=tbmRegister))
+
+
+    def getSingleTbmParameters(self, ModuleID, options={}, tbmId = 0):
         tbmParameters = []
 
         tbmParameters.append({'Name': 'TBMABase0', 'Value': 0})
@@ -325,19 +346,24 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         tbmParameters.append({'Name': 'TBMAPKAMCount', 'Value': 5})
         tbmParameters.append({'Name': 'TBMBPKAMCount', 'Value': 5})
 
+        # this returns the path to a JSON file created by Moreweb on the DB side, containing TBM settings
         remoteModuleDataPath = self.getRemoteResultsPath(ModuleID=ModuleID, options=options)
+
         if remoteModuleDataPath:
             remoteFileName = self.remotePathTBM
-            localFileName = 'temp/TBM_%s.json'%(ModuleID)
+            localFileName = 'temp/TBM_%s.json' % (ModuleID)
             urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
 
             with open(localFileName) as data_file:
                 data = json.load(data_file)
 
             try:
-                tbmParameters.append({'Name': 'TBMPLLDelay', 'Value': int(data['Core0a_basee']['Value'].replace('0x', ''), 16)})
-                tbmParameters.append({'Name': 'TBMADelay', 'Value': int(data['Core0a_basea']['Value'].replace('0x', ''), 16)})
-                tbmParameters.append({'Name': 'TBMBDelay', 'Value': int(data['Core0b_basea']['Value'].replace('0x', ''), 16)})
+                tbmParameters.append(
+                    {'Name': 'TBMPLLDelay', 'Value': self.getFormattedTbmParameter(data, tbmId, 'a', 'basee')})
+                tbmParameters.append(
+                    {'Name': 'TBMADelay', 'Value': self.getFormattedTbmParameter(data, tbmId, 'a', 'basea')})
+                tbmParameters.append(
+                    {'Name': 'TBMBDelay', 'Value': self.getFormattedTbmParameter(data, tbmId, 'b', 'basea')})
             except:
                 raise NameError("TBM/KeyValueDictPairs.json: can't read TBM parameters from JSON file")
 
@@ -350,6 +376,16 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
 
         return tbmParameters
 
+
+    def getTbmParameters(self, ModuleID, options={}):
+
+        # for L1 modules: return parameters for both TBMs in a list
+        if ModuleID.upper().startswith('M1'):
+            return [self.getSingleTbmParameters(ModuleID, options, 0), self.getSingleTbmParameters(ModuleID, options, 1)]
+        else:
+            return self.getSingleTbmParameters(ModuleID, options, 0)
+
+
     def getMaskBits(self, ModuleID, options={}):
         masks = []
         print "WARNING: reading mask bits from database is not implemented yet, using default values (unmaksed)"
@@ -357,6 +393,7 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
             rocMasks = [self.defaultMask] * self.nPix
             masks.append({'ROC': iRoc, 'Masks': rocMasks})
         return masks
+
 
     def getReadbackCalibration(self, ModuleID, options = {}):
         readbackCalibration = []
