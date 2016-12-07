@@ -11,29 +11,60 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
     def getRocDacs(self, ModuleID, options = {}):
         dacs = []
         for roc in range(self.nROCs):
-            rocDACs = [
-                {'Name': 'Vdd', 'Value': '6'},
-                {'Name': 'Vana', 'Value': '81'},
-                {'Name': 'Vsh', 'Value': '30'},
-                {'Name': 'Vcomp', 'Value': '12'},
-                {'Name': 'VwllPr', 'Value': '150'},
-                {'Name': 'VwllSh', 'Value': '150'},
-                {'Name': 'VHldDel', 'Value': '250'},
-                {'Name': 'Vtrim', 'Value': '0'},
-                {'Name': 'VcThr', 'Value': '85'},
-                {'Name': 'VIbias_bus', 'Value': '30'},
-                {'Name': 'PHOffset', 'Value': '185'},
-                {'Name': 'Vcomp_ADC', 'Value': '50'},
-                {'Name': 'PHScale', 'Value': '65'},
-                {'Name': 'VIColOr', 'Value': '100'},
-                {'Name': 'Vcal', 'Value': '200'},
-                {'Name': 'CalDel', 'Value': '133'},
-                {'Name': 'TempRange', 'Value': '0'},
-                {'Name': 'WBC', 'Value': '100'},
-                {'Name': 'ChipContReg', 'Value': '0'},
-                {'Name': 'Readback', 'Value': '0'},
-            ]
+            if ModuleID.upper().startswith('M1'):
+                rocDACs = [
+                    {'Name': 'Vdd', 'Value': '10'},
+                    {'Name': 'Vana', 'Value': '81'},
+                    {'Name': 'Vsh', 'Value': '8'},
+                    {'Name': 'Vcomp', 'Value': '12'},
+                    {'Name': 'VwllPr', 'Value': '150'},
+                    {'Name': 'VwllSh', 'Value': '150'},
+                    {'Name': 'VHldDel', 'Value': '250'},
+                    {'Name': 'Vtrim', 'Value': '0'},
+                    {'Name': 'VcThr', 'Value': '85'},
+                    {'Name': 'VIbias_bus', 'Value': '100'},
+                    {'Name': 'PHOffset', 'Value': '130'},
+                    {'Name': 'Vcomp_ADC', 'Value': '50'},
+                    {'Name': 'PHScale', 'Value': '65'},
+                    {'Name': 'VIColOr', 'Value': '100'},
+                    {'Name': 'Vcal', 'Value': '200'},
+                    {'Name': 'CalDel', 'Value': '133'},
+                    {'Name': 'TempRange', 'Value': '0'},
+                    {'Name': 'WBC', 'Value': '100'},
+                    {'Name': 'ChipContReg', 'Value': '0'},
+                    {'Name': 'Readback', 'Value': '0'},
+                ]
+            else:
+                rocDACs = [
+                    {'Name': 'Vdd', 'Value': '6'},
+                    {'Name': 'Vana', 'Value': '81'},
+                    {'Name': 'Vsh', 'Value': '30'},
+                    {'Name': 'Vcomp', 'Value': '12'},
+                    {'Name': 'VwllPr', 'Value': '150'},
+                    {'Name': 'VwllSh', 'Value': '150'},
+                    {'Name': 'VHldDel', 'Value': '250'},
+                    {'Name': 'Vtrim', 'Value': '0'},
+                    {'Name': 'VcThr', 'Value': '85'},
+                    {'Name': 'VIbias_bus', 'Value': '30'},
+                    {'Name': 'PHOffset', 'Value': '185'},
+                    {'Name': 'Vcomp_ADC', 'Value': '50'},
+                    {'Name': 'PHScale', 'Value': '65'},
+                    {'Name': 'VIColOr', 'Value': '100'},
+                    {'Name': 'Vcal', 'Value': '200'},
+                    {'Name': 'CalDel', 'Value': '133'},
+                    {'Name': 'TempRange', 'Value': '0'},
+                    {'Name': 'WBC', 'Value': '100'},
+                    {'Name': 'ChipContReg', 'Value': '0'},
+                    {'Name': 'Readback', 'Value': '0'},
+                ]
+
+
             dacs.append({'ROC': roc, 'DACs': rocDACs})
+            if self.verbose:
+                print "    -> ROC ", roc
+                for p in rocDACs:
+                    print "      -> {Name: <13}{Value}".format(Name=p['Name'], Value=p['Value'])
+
         print "  -> created list of default DACs for %d ROCs"%self.nROCs
         return dacs
 
