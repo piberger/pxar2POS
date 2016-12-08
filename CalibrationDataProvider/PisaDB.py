@@ -34,28 +34,41 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         self.remotePathReadbackJson = '/Chips/Chip{iRoc}/ReadbackCal/KeyValueDictPairs.json'
 
         self.queryStringFulltests = '''
-SELECT * FROM inventory_fullmodule
-  JOIN test_fullmodulesummary ON test_fullmodulesummary.TEST_ID = LASTTEST_FULLMODULE
-  JOIN test_fullmodule ON test_fullmodule.SUMMARY_ID = LASTTEST_FULLMODULE
-  JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
-WHERE inventory_fullmodule.FULLMODULE_ID = %s AND tempnominal LIKE %s LIMIT 10;
+            SELECT * FROM inventory_fullmodule
+              JOIN test_fullmodulesummary ON test_fullmodulesummary.TEST_ID = LASTTEST_FULLMODULE
+              JOIN test_fullmodule ON test_fullmodule.SUMMARY_ID = LASTTEST_FULLMODULE
+              JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
+            WHERE inventory_fullmodule.FULLMODULE_ID = %s AND tempnominal LIKE %s
+            LIMIT 10;
         '''
 
         self.queryStringReceptions = '''
-        SELECT * FROM inventory_fullmodule
-          JOIN test_fullmodulesummary ON test_fullmodulesummary.TEST_ID = LASTTEST_RECEPTION
-          JOIN test_fullmodule ON test_fullmodule.SUMMARY_ID = LASTTEST_RECEPTION
-          JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
-        WHERE inventory_fullmodule.FULLMODULE_ID = %s LIMIT 10;
+            SELECT * FROM inventory_fullmodule
+              JOIN test_fullmodulesummary ON test_fullmodulesummary.TEST_ID = LASTTEST_RECEPTION
+              JOIN test_fullmodule ON test_fullmodule.SUMMARY_ID = LASTTEST_RECEPTION
+              JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
+            WHERE inventory_fullmodule.FULLMODULE_ID = %s
+            LIMIT 10;
                 '''
 
         self.queryStringFulltestDacs = '''
-SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_VALUE = %s ORDER BY ROC_POS LIMIT 16;
+            SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_VALUE = %s
+            ORDER BY ROC_POS
+            LIMIT 16;
         '''
 
         self.queryStringFulltestData = '''
-        SELECT * FROM test_data WHERE DATA_ID = %s LIMIT 1;
+            SELECT * FROM test_data WHERE DATA_ID = %s
+            LIMIT 1;
         '''
+
+        self.queryStringXrayMaskedPixels = '''
+            SELECT inventory_fullmodule.FULLMODULE_ID, LASTTEST_XRAY_HR, ROC_POS, ADDR_PIXELS_HOT FROM inventory_fullmodule INNER JOIN Test_FullModule_XRay_HR_Summary ON inventory_fullmodule.LASTTEST_XRAY_HR = Test_FullModule_XRay_HR_Summary.TEST_ID
+              INNER JOIN Test_FullModule_XRay_HR_Roc_Analysis_Summary ON Test_FullModule_XRay_HR_Roc_Analysis_Summary.TEST_XRAY_HR_SUMMARY_ID = Test_FullModule_XRay_HR_Summary.TEST_ID AND Test_FullModule_XRay_HR_Roc_Analysis_Summary.PROCESSING_ID = Test_FullModule_XRay_HR_Summary.LAST_PROCESSING_ID
+            WHERE inventory_fullmodule.FULLMODULE_ID = %s
+            ORDER BY ROC_POS
+            LIMIT 20;
+'''
 
         self.dacTable = {
             'VDIG': 'Vdd',
@@ -92,7 +105,6 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         except:
             print "could not save DB password to local file 'db.auth'"
 
-
         # temp folder for downloads from database
         try:
             os.mkdir('temp')
@@ -124,7 +136,6 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         with open(dbPassFileName, 'w') as dbPassFile:
             line = username + ':' + password
             dbPassFile.write(line)
-
 
     def getFulltestRow(self, ModuleID, tempnominal):
 
@@ -216,7 +227,9 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
 
         return dacs
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # get path of MoReWeb analysis results on DB server
+    # ------------------------------------------------------------------------------------------------------------------
     def getRemoteResultsPath(self, ModuleID, options={}):
 
         # initialize
@@ -242,7 +255,9 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         else:
             return None
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # get path of MoReWeb analysis results on DB server for Reception test
+    # ------------------------------------------------------------------------------------------------------------------
     def getRemoteResultsPathReception(self, ModuleID, options={}):
 
         # initialize
@@ -268,7 +283,10 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         else:
             return None
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # returns list: [{'ROC': 0, 'Trims': rocTrims}, ...]
+    #               rocTrims = [..] list of trim-bits for 4160 pixels
+    # ------------------------------------------------------------------------------------------------------------------
     def getTrimBits(self, ModuleID, options={}):
         trims = []
 
@@ -319,7 +337,9 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
             print "  -> trim parameters read for {ModuleID}".format(ModuleID=ModuleID)
         return trims
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # read TBM register (hex) from JSON data and convert to decimal
+    # ------------------------------------------------------------------------------------------------------------------
     def getFormattedTbmParameter(self, data, tbmId, tbmCore, tbmRegister):
         try:
             tbmParameterValue = int(data['Core{tbmId}{tbmCore}_{tbmRegister}'.format(tbmId=tbmId, tbmCore=tbmCore, tbmRegister=tbmRegister)]['Value'].replace('0x', ''), 16)
@@ -331,7 +351,9 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         except:
             raise NameError("TBM/KeyValueDictPairs.json: can't read TBM parameters from JSON file: Core{tbmId}{tbmCore}_{tbmRegister}".format(tbmId=tbmId, tbmCore=tbmCore, tbmRegister=tbmRegister))
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # read all TBM registers for 1 TBM
+    # ------------------------------------------------------------------------------------------------------------------
     def getSingleTbmParameters(self, ModuleID, options={}, tbmId = 0):
         tbmParameters = []
 
@@ -376,7 +398,9 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
 
         return tbmParameters
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # read all TBM registers for all TBMs
+    # ------------------------------------------------------------------------------------------------------------------
     def getTbmParameters(self, ModuleID, options={}):
 
         # for L1 modules: return parameters for both TBMs in a list
@@ -385,16 +409,54 @@ SELECT * FROM test_dacparameters WHERE FULLMODULEANALYSISTEST_ID = %s AND TRIM_V
         else:
             return self.getSingleTbmParameters(ModuleID, options, 0)
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # returns list: [{'ROC': 0, 'Masks': rocMasks}, ...]
+    #               rocMasks = [0, 0, 0, ... ] list of mask-bits for 4160 pixels. 0=unmasked, 1=masked
+    # ------------------------------------------------------------------------------------------------------------------
     def getMaskBits(self, ModuleID, options={}):
         masks = []
-        print "WARNING: reading mask bits from database is not implemented yet, using default values (unmasked)"
-        for iRoc in range(self.nROCs):
-            rocMasks = [self.defaultMask] * self.nPix
-            masks.append({'ROC': iRoc, 'Masks': rocMasks})
+        print "  -> reading mask bits from database: Xray test"
+
+        # get DACs
+        cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor.execute(self.queryStringXrayMaskedPixels, (ModuleID, ))
+        self.db.commit()
+        rows = cursor.fetchall()
+
+        if len(rows) < 1:
+            print "WARNING: no X-ray test found for this module, using unmasked configuration!"
+
+            for iRoc in range(self.nROCs):
+                rocMasks = [self.defaultMask] * self.nPix
+                masks.append({'ROC': iRoc, 'Masks': rocMasks})
+        else:
+            if len(rows) != self.nROCs:
+                if self.verbose:
+                    print '-'*80, '\n',rows,'\n'
+                raise NameError("ERROR: DB returns data for less/more ROCs than exist on the module!")
+
+            print "    -> XRAY HR test ID", rows[0]['LASTTEST_XRAY_HR']
+            for row in rows:
+                rocMasks = [self.defaultMask] * self.nPix
+                maskedPixelsString = row['ADDR_PIXELS_HOT'].strip().strip('[').strip(']')
+                if len(maskedPixelsString) > 0:
+                    maskedPixels = [[int(y) for y in x.strip().strip('(').strip(')').split(',')] for x in maskedPixelsString.split('),')]
+                else:
+                    maskedPixels = []
+                if self.verbose:
+                    if len(maskedPixels) > 0:
+                        print "%d pixels MASKED on ROC %d:"%(len(maskedPixels), int(row['ROC_POS'])), maskedPixels
+                for maskedPixel in maskedPixels:
+                    rocMasks[maskedPixel[1]*self.nRows + maskedPixel[2]] = 1
+
+                masks.append({'ROC': int(row['ROC_POS']), 'Masks': rocMasks})
+
         return masks
 
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # returns list: [{'ROC': 0, 'ReadbackCalibration': readbackCalibrationRoc}, ...]
+    #               readbackCalibrationRoc = [{'Name': readbackParameter, 'Value': parameterValue}, ...]
+    # ------------------------------------------------------------------------------------------------------------------
     def getReadbackCalibration(self, ModuleID, options = {}):
         readbackCalibration = []
 

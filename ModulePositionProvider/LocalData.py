@@ -21,17 +21,17 @@ class ModulePositionProvider(AbstractModulePositionProvider):
         if os.path.isfile(modulesListFileName):
             with open(modulesListFileName, 'r') as modulesListFile:
                 for line in modulesListFile:
-                    lineSplitted = [x for x in line.replace('\t', ' ').split(' ') if len(x) > 0]
-                    if lineSplitted[0] == ModuleID:
-                        modulePosition = lineSplitted[1:]
+                    lineSplit = [x for x in line.replace(';', ' ').replace('\t', ' ').split(' ') if len(x) > 0]
+                    if lineSplit[0] == ModuleID:
+                        modulePosition = lineSplit[1:]
                         moduleFound = True
 
         modulePosition = [x.strip() for x in modulePosition if len(x.strip()) > 0]
         if moduleFound:
             print " -> module found:", ModuleID
-            print " -> position: ", '/'.join(modulePosition)
+            print " -> position: ", '_'.join(modulePosition)
         else:
-            print "\x1b[31m -> module ", ModuleID," not found in ", modulesListFileName ,"\x1b[0m"
+            print "\x1b[31m -> module ", ModuleID, " not found in ", modulesListFileName, "\x1b[0m"
             print "\x1b[31m -> module ID will be used to create files instead of BPix position!\x1b[0m"
             modulePosition = [ModuleID]
 
