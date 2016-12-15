@@ -25,6 +25,12 @@ class POSWriter(object):
             self.outputFileNameReadback = "ROC_Iana_{Position}.dat"
         else:
 
+            # initialize output directory
+            try:
+                os.mkdir(self.outputPath)
+            except:
+                pass
+
             # create output subfolders if necessary
             for folderName in ['dac', 'tbm', 'iana', 'mask', 'trim']:
                 try:
@@ -32,6 +38,7 @@ class POSWriter(object):
                 except:
                     pass
                 try:
+                    print "CREATE    !!!!! ", self.outputPath + '/%s/%d'%(folderName, self.configurationID)
                     os.mkdir(self.outputPath + '/%s/%d'%(folderName, self.configurationID))
                 except:
                     pass
@@ -61,11 +68,6 @@ class POSWriter(object):
             [4, 5, 6, 7, 8, 9, 10, 11],
         ]
 
-        # initialize output directory
-        try:
-            os.mkdir(self.outputPath)
-        except:
-            pass
 
     # ------------------------------------------------------------------------------------------------------------------
     # check if L1 or L2/3/4 module
