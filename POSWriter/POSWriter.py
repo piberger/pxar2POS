@@ -38,7 +38,6 @@ class POSWriter(object):
                 except:
                     pass
                 try:
-                    print "CREATE    !!!!! ", self.outputPath + '/%s/%d'%(folderName, self.configurationID)
                     os.mkdir(self.outputPath + '/%s/%d'%(folderName, self.configurationID))
                 except:
                     pass
