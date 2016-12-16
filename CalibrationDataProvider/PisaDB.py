@@ -42,6 +42,15 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
             LIMIT 10;
         '''
 
+        self.queryStringFulltests2 = '''
+            SELECT * FROM inventory_fullmodule
+              JOIN test_fullmodule ON test_fullmodule.FULLMODULE_ID = inventory_fullmodule.FULLMODULE_ID
+              JOIN test_fullmoduleanalysis ON test_fullmoduleanalysis.TEST_ID = test_fullmodule.LASTANALYSIS_ID
+              WHERE inventory_fullmodule.FULLMODULE_ID = %s AND tempnominal LIKE %s
+              ORDER BY tempnominal, TIMESTAMP DESC
+              LIMIT 10;
+        '''
+
         self.queryStringReceptions = '''
             SELECT * FROM inventory_fullmodule
               JOIN test_fullmodulesummary ON test_fullmodulesummary.TEST_ID = LASTTEST_RECEPTION
@@ -142,12 +151,21 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
 
         # get list of fulltests
+        if self.verbose:
+            print "\x1b[32mSQL:", self.queryStringFulltests%(ModuleID, tempnominal + '%'), "\x1b[0m"
         cursor.execute(self.queryStringFulltests, (ModuleID, tempnominal + '%'))
         self.db.commit()
         rows = cursor.fetchall()
         if len(rows) < 1:
-            print "\x1b[31mERROR: no Fulltests found for tempnominal=", tempnominal,"\x1b[0m"
-            return None
+            print "ERROR: no FullQualification found including tempnominal=", tempnominal," => search for single Fulltests "
+            if self.verbose:
+                print "\x1b[32mSQL:", self.queryStringFulltests2 % (ModuleID, tempnominal + '%'), "\x1b[0m"
+            cursor.execute(self.queryStringFulltests2, (ModuleID, tempnominal + '%'))
+            self.db.commit()
+            rows = cursor.fetchall()
+            if len(rows) < 1:
+                print "\x1b[31mERROR: no Fulltests found for tempnominal=", tempnominal,"\x1b[0m"
+                return None
 
         if len(rows) > 1:
             print "WARNING: multiple Fulltests found for tempnominal=", tempnominal, " using the first one"
@@ -284,6 +302,26 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
             return None
 
     # ------------------------------------------------------------------------------------------------------------------
+    # wrapper for urllib to download files from DB
+    # ------------------------------------------------------------------------------------------------------------------
+    def downloadFile(self, remoteUrl, localFileName):
+        attempts = 5
+        success = False
+        while attempts > 0 and not success:
+            try:
+                urllib.urlretrieve(remoteUrl, localFileName)
+                success = True
+            except Exception as e:
+                print "ERROR: ", e, "=> RETRY"
+                attempts -= 1
+
+        if not success:
+            print "\x1b[31mERROR: could not download file:", remoteUrl, "\x1b[0m"
+
+        return success
+
+
+    # ------------------------------------------------------------------------------------------------------------------
     # returns list: [{'ROC': 0, 'Trims': rocTrims}, ...]
     #               rocTrims = [..] list of trim-bits for 4160 pixels
     # ------------------------------------------------------------------------------------------------------------------
@@ -304,7 +342,11 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
             for iRoc in range(self.nROCs):
                 remoteFileName = self.remotePathTrimBitMap.format(iRoc=iRoc)
                 localFileName = 'temp/TrimBitMap%sROC%d.root'%(ModuleID, iRoc)
-                urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
+
+                if not self.downloadFile(remoteModuleDataPath + remoteFileName, localFileName):
+                    print "\x1b[31m:ERROR: could not download file with trimbits\x1b[0m"
+                    raise Exception("could not download trimbit file")
+
                 rocTrims = [self.defaultTrim] * self.nPix
 
                 # read trim file
@@ -374,7 +416,9 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         if remoteModuleDataPath:
             remoteFileName = self.remotePathTBM
             localFileName = 'temp/TBM_%s.json' % (ModuleID)
-            urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
+            if not self.downloadFile(remoteModuleDataPath + remoteFileName, localFileName):
+                print "\x1b[31m:ERROR: could not download file with TBM parameters\x1b[0m"
+                raise Exception("could not download TBM file")
 
             with open(localFileName) as data_file:
                 data = json.load(data_file)
@@ -466,7 +510,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
             for iRoc in range(self.nROCs):
                 remoteFileName = self.remotePathReadbackJson.format(iRoc=iRoc)
                 localFileName = 'temp/%s_ReadbackCalibration_ROC%d.json'%(ModuleID, iRoc)
-                urllib.urlretrieve(remoteModuleDataPath + remoteFileName, localFileName)
+                self.downloadFile(remoteModuleDataPath + remoteFileName, localFileName)
 
                 readbackCalibrationRoc = []
 
@@ -488,7 +532,9 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
                     remoteModuleDataPathReception = self.getRemoteResultsPathReception(ModuleID=ModuleID, options=options)
 
                     if remoteModuleDataPathReception:
-                        urllib.urlretrieve(remoteModuleDataPathReception + remoteFileName, localFileName)
+                        if not self.downloadFile(remoteModuleDataPathReception + remoteFileName, localFileName):
+                            print "\x1b[31m:ERROR: could not download file with readback calibration from reception test\x1b[0m"
+                            raise Exception("could not download reception readback file")
 
                         try:
                             with open(localFileName) as data_file:
