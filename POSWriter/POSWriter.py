@@ -224,7 +224,10 @@ class POSWriter(object):
     # ------------------------------------------------------------------------------------------------------------------
     def getFormattedHalfModuleName(self, ModulePosition, tbmId = 0):
         halfModuleSuffix = 'H' if tbmId == 1 else 'F'
-        return "_".join([(x.strip()[0:-1] + halfModuleSuffix) if x.upper().startswith('LDR') else x for x in ModulePosition])
+        if 'LDR' in '_'.join(ModulePosition):
+            return "_".join([(x.strip()[0:-1] + halfModuleSuffix) if x.upper().startswith('LDR') else x for x in ModulePosition])
+        else:
+            return '_'.join(ModulePosition) + halfModuleSuffix
 
     # ------------------------------------------------------------------------------------------------------------------
     # get filename for TBM files
