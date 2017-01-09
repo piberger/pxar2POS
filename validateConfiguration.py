@@ -38,6 +38,11 @@ checks = [
     ['trim', '/trim/{configurationId}/ROC_Trims_module_{detectorModuleName}.dat'],
 ]
 
+print ""
+print "legend:"
+print " . good"
+print " X bad"
+print ""
 # ----------------------------------------------------------------------------------------------------------------
 #  run the checks
 # ----------------------------------------------------------------------------------------------------------------
@@ -92,3 +97,5 @@ for layer, detectorLayerLadder in enumerate(detectorLayerLadders, start=1):
 print "problematic modules:"
 for problem in problems.iteritems():
     print problem
+if len(problems) < 1:
+    print "none :)"
