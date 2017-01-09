@@ -2,7 +2,7 @@ import os
 
 class POSWriter(object):
 
-    def __init__(self, outputPath = "", configurationID = -1):
+    def __init__(self, outputPath = "", configurationID = -1, createFoldersOnInitialization = True):
 
         try:
             self.configurationID = int(configurationID)
@@ -31,16 +31,17 @@ class POSWriter(object):
             except:
                 pass
 
-            # create output subfolders if necessary
-            for folderName in ['dac', 'tbm', 'iana', 'mask', 'trim']:
-                try:
-                    os.mkdir(self.outputPath + '/%s'%folderName)
-                except:
-                    pass
-                try:
-                    os.mkdir(self.outputPath + '/%s/%d'%(folderName, self.configurationID))
-                except:
-                    pass
+            if createFoldersOnInitialization:
+                # create output subfolders if necessary
+                for folderName in ['dac', 'tbm', 'iana', 'mask', 'trim']:
+                    try:
+                        os.mkdir(self.outputPath + '/%s'%folderName)
+                    except:
+                        pass
+                    try:
+                        os.mkdir(self.outputPath + '/%s/%d'%(folderName, self.configurationID))
+                    except:
+                        pass
 
             self.outputFileNameDAC = "dac/%d/ROC_DAC_module_{Position}.dat"%self.configurationID
             self.outputFileNameTrims = "trim/%d/ROC_Trims_module_{Position}.dat"%self.configurationID
@@ -67,6 +68,9 @@ class POSWriter(object):
             [4, 5, 6, 7, 8, 9, 10, 11],
         ]
 
+    def getOutputFileNames(self):
+        return {'dac': self.outputFileNameDAC, 'trim': self.outputFileNameTrims, 'tbm': self.outputFileNameTBM,
+                'mask': self.outputFileNameMasks, 'iana': self.outputFileNameReadback}
 
     # ------------------------------------------------------------------------------------------------------------------
     # check if L1 or L2/3/4 module
