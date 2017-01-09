@@ -11,8 +11,8 @@ converts pxar parameter files to POS files
 
 ### Installation & running
 
-- adjust configuration values in pxar2POS.py, e.g. path of module position table, which is a simple text file. It's format can bee seen in: ExampleData/modules.txt where as example 2 fictional modules M2222 and M2223 are entered.
-- run ./pxar2POS.py -m M2222 to write the parameters for M2222 to the output folder defined in pxar2POS.py
+- adjust configuration values in pxar2POS.py, e.g. path of module position table, which is a simple text file. It's format can bee seen in: `ExampleData/modules.txt` where as example 2 fictional modules M2222 and M2223 are entered.
+- run `./pxar2POS.py -m M2222` to write the parameters for M2222 to the output folder defined in pxar2POS.py
 - or load the pxar2POSConverter class directly from your application
 
 Data is read from a remote MySQL server if config option DataSource contains 'http://' as prefix (see default), otherwise from local pxar folder structure.
@@ -44,24 +44,41 @@ interpolate DACs linearly between -20 and +17 ----> to +8 degrees and save in de
     ./pxar2POS.py -m M2222 -t p8 -o Parameters_p8/
 ```
 
-get configuration from MySQL DB running at localhost
+get configuration from MySQL DB running at localhost:
 ```
     ./pxar2POS.py -m M2222 -s http://127.0.0.1
 ```
 
-create default configuration for a module which does not exist in DB
+create default configuration for a module which does not exist in DB:
 ```
     ./pxar2POS.py -m M9999 -s default
 ```
 
+(with bash) write whole detector configuration to config ID 2:
+````
+    for i in `cat ModulePositions/161222.txt | awk '{print $1}'`; do ./pxar2POS.py -i 2 -m $i; done 
+````
 
 ### "--do" option
 
-With this option, DACs/TBM parameters can be changed for the whole configuration at once. Pxar2POS always creates a new copy the the currently selected configuration (UserConfig.ini or -i switch) to a new one and only changed the new configuration.
+With this option, DACs/TBM parameters can be changed for the whole configuration at once. Pxar2POS always creates a new copy the the currently selected configuration (UserConfig.ini or `-i` switch) to a new one and only changed the new configuration.
 Format is:
-   {subfolder}:[{condition}?]{operator}:{key}:{value};...
-with {subfolder} one of tbm/dac/..., {operator}: set/and/or/incr4bit/incr8bit. AND and OR instructions are computed bitwise. {key} specifies which line to change, e.g. which DAC, and {value} is the operand.
-{condition} is an expression, which needs to be matched in the file before any single replacement (* is wildcard). It can be used to target only specific ROCs or layers.
+   `{subfolder}:[{condition}?]{operator}:{key}:{value};...`
+with `{subfolder}` one of:
+* tbm
+* dac
+* mask
+* iana
+
+`{operator}`:
+* set
+* and (bitwise)
+* or (bitwise)
+* incr4bit (result clipped in range 0-15)
+* incr8bit (result clipped in range 0-255)
+
+`{key}` specifies which line to change, e.g. which DAC, and {value} is the operand.
+`{condition}` is an expression, which needs to be matched in a line of the file before any single replacement (`*` is wildcard). It can be used to target only specific ROCs or layers.
 
 
 
@@ -89,3 +106,8 @@ set token/header/trailer delay to 0 for all modules, without touching port delay
 ```
     ./pxar2POS.py --do "tbm:and:TBMADelay:63;tbm:and:TBMBDelay:63"
 ```
+
+just copy configuration with ID `2` to a new configuration and don't do anything with it (new ID assigned automatically):
+````
+    ./pxar2POS.py --do "exit" -i 2
+````
