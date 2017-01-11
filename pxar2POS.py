@@ -192,7 +192,8 @@ elif len(args.do) > 0:
                                     datFileLines[i] = ': '.join(lineParts) + '\n'
 
                                     # reset condition and mark the file as changed
-                                    conditionalMet = False
+                                    if len(conditional) > 0:
+                                        conditionalMet = False
                                     changesMade = True
                             elif instruction == 'and':
                                 if lineParts[0] == runCommand[2]:
@@ -200,7 +201,8 @@ elif len(args.do) > 0:
                                     datFileLines[i] = ': '.join(lineParts) + '\n'
 
                                     # reset condition and mark the file as changed
-                                    conditionalMet = False
+                                    if len(conditional) > 0:
+                                        conditionalMet = False
                                     changesMade = True
                             elif instruction == 'or':
                                 if lineParts[0] == runCommand[2]:
@@ -208,7 +210,8 @@ elif len(args.do) > 0:
                                     datFileLines[i] = ': '.join(lineParts) + '\n'
 
                                     # reset condition and mark the file as changed
-                                    conditionalMet = False
+                                    if len(conditional) > 0:
+                                        conditionalMet = False
                                     changesMade = True
                             elif instruction.startswith('incr') and (instruction.endswith('bit') or instruction.endswith('bits')):
                                 nBits = int(instruction.replace('bits','').replace('bit','').replace('incr',''))
