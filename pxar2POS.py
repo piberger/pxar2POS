@@ -226,7 +226,8 @@ elif len(args.do) > 0:
                                     datFileLines[i] = ': '.join(lineParts) + '\n'
 
                                     # reset condition and mark the file as changed
-                                    conditionalMet = False
+                                    if len(conditional) > 0:
+                                        conditionalMet = False
                                     changesMade = True
 
                         else:
