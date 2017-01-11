@@ -185,7 +185,11 @@ class POSWriter(object):
                     colMasks = ''
                     for iRow in range(self.nRows):
                         iPix = iCol * self.nRows + iRow
-                        colMasks += '%1x'%rocData['Masks'][iPix]
+                        if rocData['Masks'][iPix] == 0:  # mask bit not set
+                            colMasks += '1'  # enabled
+                        else:
+                            colMasks += '0'  # masked
+
                     colLine = "col%02d:   %s\n"%(iCol, colMasks)
                     outputFile.write(colLine)
         print "  -> maskbits for {nRocs} ROCS written to '\x1b[34m{outputFileName}\x1b[0m'".format(nRocs=len(maskData), outputFileName=outputFileName)
