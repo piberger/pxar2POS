@@ -13,6 +13,7 @@ except:
     print "\x1b[31mcould not load module: 'pxar2POSConverter', make sure the file exists.\x1b[0m"
 
 
+# show splash screen
 print "-"*80
 print '''
                                         222       $$$$$$$\   $$$$$$\   $$$$$$\\
@@ -30,6 +31,7 @@ try:
 except:
     pass
 print "-"*80
+
 
 # create user configuration (= not under version control) - if not existing
 if not os.path.isfile('UserConfiguration.ini'):
@@ -83,9 +85,9 @@ parser.add_argument('-i', '--configuration-id', dest='configuration_id',
 parser.add_argument('-d', '--do', dest='do',
                     help='command to run',
                     default='')
-
 args = parser.parse_args()
 
+# check given options, --do can not be used with -m at the same time
 if len(args.module.strip()) < 1 and len(args.do) < 1:
     print "no module specified. show help with -h"
     exit(0)
@@ -93,6 +95,8 @@ elif len(args.do) > 0 and len(args.module) > 0:
     print "running commands for certain modules only is not implemented yet, omit -m option to run it for all!"
     exit(0)
 elif len(args.do) > 0:
+
+    # --do needs a config ID specified
     configurationID = -1
     try:
         configurationID = int(args.configuration_id)
@@ -114,6 +118,7 @@ elif len(args.do) > 0:
 
     runCommands = [x.strip().split(':') for x in args.do.split(';')]
 
+    # ask user confirmation
     print '+%s+'%('-'*78)
     print '|%s|'%((' copy configuration ID %d -> %d ?'%(configurationID, newConfigurationID)).ljust(78))
     print '|%s|'%(' '*78)
@@ -122,10 +127,10 @@ elif len(args.do) > 0:
         print '| %s|'%(('%r'%runCommand).ljust(77))
     print '|%s|'%(' '*78)
     print '+%s+'%('-'*78)
-
     answer = raw_input('ENTER/y to continue, q to quit>')
 
     if answer.lower() == 'y' or len(answer.strip()) < 1:
+
         # copy configuration to new ID
         posWriterOutput = POSWriter(outputPath=args.output, configurationID=newConfigurationID, createFoldersOnInitialization=False)
         outputFileNames = posWriterOutput.getOutputFileNames()
@@ -138,20 +143,23 @@ elif len(args.do) > 0:
             shutil.copytree(copyFrom, copyTo)
         print "  -> done."
 
-
         # run commands
-        #  example: enable PKAM counter, but only for L4 modules: tbm:*_LYR4_*?set:TBMADisablePKAMCounter:0
-
         print "run commands..."
 
-        # dac:set:Vdd:8
-        # dac:incr8bit:Vana:20
-        # dac:incr4bit:Vdd:1
-        # tbm:and:TBMADelay:128
+        #  examples: enable PKAM counter, but only for L4 modules: tbm:*_LYR4_*?set:TBMADisablePKAMCounter:0
+        #    dac:set:Vdd:8
+        #    dac:incr8bit:Vana:20
+        #    dac:incr4bit:Vdd:1
+        #    tbm:and:TBMADelay:128
 
+        # loop over list of commands separated by ';'
         for runCommand in runCommands:
             conditional = ''
+
+            # check if directory (first argument) exists
             if runCommand[0] in outputFileNames:
+
+                # extract condition and instruction
                 if args.verbose:
                     print "found! ", outputFileNames[runCommand[0]]
                 if '?' in runCommand[1]:
@@ -172,7 +180,7 @@ elif len(args.do) > 0:
                     with open(datFileName, 'r') as datFile:
                         datFileLines = datFile.readlines()
 
-                    # check all lines of the dat file
+                    # loop over all lines of the dat file
                     changesMade = False
                     for i in range(len(datFileLines)):
                         if conditionalMet:
@@ -222,30 +230,30 @@ elif len(args.do) > 0:
                                     changesMade = True
 
                         else:
+                            # check if condition is fulfilled
                             if fnmatch.fnmatch(datFileLines[i].strip(), conditional):
                                 if args.verbose:
                                     print "    -> condition met:", datFileLines[i], conditional
                                 conditionalMet = True
 
+                    # write file back, if changes were made
                     if changesMade:
                         if args.verbose:
                             print "update file: '\x1b[34m{datFileName}\x1b[0m'".format(datFileName=datFileName)
                         with open(datFileName, 'w') as datFile:
                             datFile.writelines(datFileLines)
+
             elif runCommand[0] == 'exit':
                 break
             else:
                 print "\x1b[31mERROR: command type not found:",runCommand[0],"\x1b[0m"
+
         print "  -> done."
 
         print " -> done."
 
     else:
         print " \x1b[31m-> aborted!\x1b[0m"
-
-
-
-
 
 else:
     # obtain data from DB
