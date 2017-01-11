@@ -208,7 +208,12 @@ class POSWriter(object):
     def writeSingleTBMFile(self, tbmData, modulePositionString):
         outputFileName = self.outputPath + self.outputFileNameTBM.format(Position=modulePositionString)
         with open(outputFileName, 'w') as outputFile:
-            headerLine = modulePositionString + '_ROC0\n'  # for some reason there has to be a 'ROC0' even for TBM configuration
+
+            if 'H_MOD' in modulePositionString.upper():
+                headerLine = modulePositionString + '_ROC4\n'  # for some reason there has to be a 'ROC0' even for TBM configuration
+            else:
+                headerLine = modulePositionString + '_ROC0\n'  # for some reason there has to be a 'ROC4' even for TBM configuration
+
 
             # write header
             outputFile.write(headerLine)
