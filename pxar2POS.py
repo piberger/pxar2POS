@@ -45,6 +45,10 @@ if not os.path.isfile('UserConfiguration.ini'):
 
 # load default configuration first and then overwrite with user configuration
 config = ConfigParser.SafeConfigParser()
+
+# make config parser case sensitive
+config.optionxform = str
+
 try:
     config.read('DefaultConfiguration.ini')
 except:
@@ -289,7 +293,14 @@ else:
     )
 
     # select which Fulltest of FullQualification to use
-    testOptions = {'Test': '*ulltest*_' + args.temp, 'tempnominal': args.temp, 'TrimValue': args.trim}
+    testOptions = {'Test': '*ulltest*_' + args.temp, 'tempnominal': args.temp, 'TrimValue': args.trim, 'Transformations': {}}
+
+    # additional transformations of values
+    if config.has_section('DACs'):
+        testOptions['Transformations']['DACs'] = {}
+        for dac, value in config.items('DACs'):
+            testOptions['Transformations']['DACs'][dac] = value
+
 
     # convert files
     moduleIDList = args.module.replace(';',',').split(',')

@@ -27,6 +27,9 @@ class pxar2POSConverter(object):
         else:
             print "\x1b[31mERROR: %s\x1b[0m"%errorMessage.strip()
 
+    # ******************************************************************************************************************
+    #  helper functions for DAC interpolation
+    # ******************************************************************************************************************
 
     # simple linear DAC interpolation
     def interpolateLinear(self, dacValueLow, dacValueHigh, temperature, temperatureLow=-20, temperatureHigh=17):
@@ -49,7 +52,9 @@ class pxar2POSConverter(object):
             print "interpolate DAC:", dacName,
         return self.interpolateLinear(dacValueLow, dacValueHigh, temperature, temperatureLow, temperatureHigh)
 
-    # checks if module ID has correct format
+    # ******************************************************************************************************************
+    #  checks if module ID has correct format
+    # ******************************************************************************************************************
     def verifyModuleID(self, moduleID):
         good = True
         if not moduleID.startswith('M'):
@@ -67,14 +72,22 @@ class pxar2POSConverter(object):
 
         return good
 
-
+    # ******************************************************************************************************************
+    #  convertModuleData
+    # ******************************************************************************************************************
+    # 1) read values from data source into intermediate format
+    # 2) apply transformations
+    # 3) write them with POSWriter module
+    # ******************************************************************************************************************
     def convertModuleData(self, moduleID, testOptions):
 
         # verify if ID is correct
         self.verifyModuleID(moduleID)
 
         # get module position in detector
+        # .txt file content:
         #     B/F      O/I    sector  layer   ladder   pos(inner=MOD1, outer=MOD4)
+        # interpreted as:
         #  -> ['BPix', 'BmO', 'SEC1', 'LYR2', 'LDR1H', 'MOD4']
         modulePosition = self.modulePositionTable.getModulePosition(moduleID)
 
@@ -146,6 +159,22 @@ class pxar2POSConverter(object):
             self.printError("could not interpolate DACs", traceback.format_exc())
             errorsOccurred += 1
 
+        # apply transformations
+        if 'Transformations' in testOptions and 'DACs' in testOptions['Transformations']:
+            nDACsChanged = 0
+            if self.verbose:
+                print "  --> DAC transformation rule:", testOptions['Transformations']['DACs']
+            for rocDACsRoc in rocDACs:
+                for dac in rocDACsRoc['DACs']:
+                    if self.verbose:
+                        print "    --> check DAC ", dac['Name']
+                    if dac['Name'] in testOptions['Transformations']['DACs']:
+                        dac['Value'] = testOptions['Transformations']['DACs'][dac['Name']]
+                        nDACsChanged += 1
+            if nDACsChanged > 0:
+                print "  -> %d DACs changed!"%nDACsChanged
+            elif len(testOptions['Transformations']['DACs']) > 0:
+                print "  \x1b[31m--> DACs specified in config file not found in DAC parameters file -> nothing done!\x1b[0m"
 
         # write DAC parameters
         try:
