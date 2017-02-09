@@ -17,6 +17,12 @@ class pxar2POSConverter(object):
         cdpf = CalibrationDataProviderFactory.CalibrationDataProviderFactory()
         self.dataSource = cdpf.init(dataSource, self.verbose)
 
+        # define parameters to be extracted
+        if 'ExtractParameters' in options:
+            self.extractParameters = [x.strip().lower() for x in options['ExtractParameters'].split(',')]
+        else:
+            self.extractParameters = ['dac', 'iana', 'mask', 'tbm', 'trim']
+
         # initialize pixel online format writer
         self.posWriter = POSWriter(outputPath=options['OutputPath'], configurationID=self.configurationID)
 
@@ -96,6 +102,7 @@ class pxar2POSConverter(object):
 
         # check for temperature interpolation
         temperatureInterpolation = False
+        interpolationTemperature = 0
         interpolationTemperatureLow = -20
         interpolationTemperatureHigh = 17
         if 'tempnominal' in testOptions and testOptions['tempnominal'][0:3] not in ['m20', 'p17']:
@@ -105,137 +112,144 @@ class pxar2POSConverter(object):
         # ------------------------------------------------------------------------------------------------------------------
         # DAC parameters
         # ------------------------------------------------------------------------------------------------------------------
+        if 'dac' in self.extractParameters:
+            # read DAC parameters
+            try:
+                if temperatureInterpolation:
+                    testOptions['tempnominal'] = 'p17_1'
+                    rocDACsHigh = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
+                    testOptions['tempnominal'] = 'm20_1'
+                    rocDACsLow = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
+                else:
+                    rocDACs = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
+            except Exception as e:
+                self.printError("could not read DAC parameters", traceback.format_exc())
+                errorsOccurred += 1
 
-        # read DAC parameters
-        try:
-            if temperatureInterpolation:
-                testOptions['tempnominal'] = 'p17_1'
-                rocDACsHigh = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
-                testOptions['tempnominal'] = 'm20_1'
-                rocDACsLow = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
-            else:
-                rocDACs = self.dataSource.getRocDacs(ModuleID=moduleID, options=testOptions)
-        except Exception as e:
-            self.printError("could not read DAC parameters", traceback.format_exc())
-            errorsOccurred += 1
+            # do temperature interpolation
+            nDacsInterpolated = 0
+            try:
+                if temperatureInterpolation:
+                    rocDACs = []
 
-        # do temperature interpolation
-        nDacsInterpolated = 0
-        try:
-            if temperatureInterpolation:
-                rocDACs = []
+                    for rocDACsRocLow in rocDACsLow:
+                        rocDACsRoc = []
+                        rocPos = rocDACsRocLow['ROC']
+                        if self.verbose:
+                            print "    -> ROC ", rocPos
+                        for dacTuple in rocDACsRocLow['DACs']:
 
-                for rocDACsRocLow in rocDACsLow:
-                    rocDACsRoc = []
-                    rocPos = rocDACsRocLow['ROC']
-                    if self.verbose:
-                        print "    -> ROC ", rocPos
-                    for dacTuple in rocDACsRocLow['DACs']:
+                            # low T DAC value
+                            dacName = dacTuple['Name']
+                            dacValueLow = float(dacTuple['Value'].strip())
 
-                        # low T DAC value
-                        dacName = dacTuple['Name']
-                        dacValueLow = float(dacTuple['Value'].strip())
+                            # find high T DAC value
+                            rocDACsRocHigh = [x for x in rocDACsHigh if x['ROC'] == rocPos]
+                            if len(rocDACsRocHigh) != 1:
+                                raise Exception('ROC not found for high T: %r / %r'%(rocPos, dacName))
+                            dacValueHighList = [x for x in rocDACsRocHigh[0]['DACs'] if x['Name'] == dacName]
+                            if len(rocDACsRocHigh) != 1:
+                                raise Exception('DAC not found for high T: %r' % dacName)
+                            dacValueHigh = float(dacValueHighList[0]['Value'].strip())
 
-                        # find high T DAC value
-                        rocDACsRocHigh = [x for x in rocDACsHigh if x['ROC'] == rocPos]
-                        if len(rocDACsRocHigh) != 1:
-                            raise Exception('ROC not found for high T: %r / %r'%(rocPos, dacName))
-                        dacValueHighList = [x for x in rocDACsRocHigh[0]['DACs'] if x['Name'] == dacName]
-                        if len(rocDACsRocHigh) != 1:
-                            raise Exception('DAC not found for high T: %r' % dacName)
-                        dacValueHigh = float(dacValueHighList[0]['Value'].strip())
+                            # interpolation
+                            interpolatedValue = '%d'%int(self.interpolateDAC(dacName=dacName, dacValueLow=dacValueLow,
+                                dacValueHigh=dacValueHigh, temperature=interpolationTemperature,
+                                temperatureLow=interpolationTemperatureLow, temperatureHigh=interpolationTemperatureHigh))
+                            nDacsInterpolated += 1
 
-                        # interpolation
-                        interpolatedValue = '%d'%int(self.interpolateDAC(dacName=dacName, dacValueLow=dacValueLow,
-                            dacValueHigh=dacValueHigh, temperature=interpolationTemperature,
-                            temperatureLow=interpolationTemperatureLow, temperatureHigh=interpolationTemperatureHigh))
-                        nDacsInterpolated += 1
+                            rocDACsRoc.append({'Name': dacName, 'Value': interpolatedValue})
 
-                        rocDACsRoc.append({'Name': dacName, 'Value': interpolatedValue})
+                        rocDACs.append({'ROC': rocPos, 'DACs': rocDACsRoc})
+                    print " -> interpolated %d DACs to %1.2f C"%(nDacsInterpolated, interpolationTemperature)
+            except Exception as e:
+                self.printError("could not interpolate DACs", traceback.format_exc())
+                errorsOccurred += 1
 
-                    rocDACs.append({'ROC': rocPos, 'DACs': rocDACsRoc})
-                print " -> interpolated %d DACs to %1.2f C"%(nDacsInterpolated, interpolationTemperature)
-        except Exception as e:
-            self.printError("could not interpolate DACs", traceback.format_exc())
-            errorsOccurred += 1
+            # apply transformations
+            if 'Transformations' in testOptions and 'DACs' in testOptions['Transformations']:
+                nDACsChanged = 0
+                if self.verbose:
+                    print "  --> DAC transformation rule:", testOptions['Transformations']['DACs']
+                for rocDACsRoc in rocDACs:
+                    for dac in rocDACsRoc['DACs']:
+                        if self.verbose:
+                            print "    --> check DAC ", dac['Name']
+                        if dac['Name'] in testOptions['Transformations']['DACs']:
+                            dac['Value'] = testOptions['Transformations']['DACs'][dac['Name']]
+                            nDACsChanged += 1
+                if nDACsChanged > 0:
+                    print "  -> %d DACs changed!"%nDACsChanged
+                elif len(testOptions['Transformations']['DACs']) > 0:
+                    print "  \x1b[31m--> DACs specified in config file not found in DAC parameters file -> nothing done!\x1b[0m"
 
-        # apply transformations
-        if 'Transformations' in testOptions and 'DACs' in testOptions['Transformations']:
-            nDACsChanged = 0
-            if self.verbose:
-                print "  --> DAC transformation rule:", testOptions['Transformations']['DACs']
-            for rocDACsRoc in rocDACs:
-                for dac in rocDACsRoc['DACs']:
-                    if self.verbose:
-                        print "    --> check DAC ", dac['Name']
-                    if dac['Name'] in testOptions['Transformations']['DACs']:
-                        dac['Value'] = testOptions['Transformations']['DACs'][dac['Name']]
-                        nDACsChanged += 1
-            if nDACsChanged > 0:
-                print "  -> %d DACs changed!"%nDACsChanged
-            elif len(testOptions['Transformations']['DACs']) > 0:
-                print "  \x1b[31m--> DACs specified in config file not found in DAC parameters file -> nothing done!\x1b[0m"
-
-        # write DAC parameters
-        try:
-            self.posWriter.writeDACs(moduleID, modulePosition, rocDACs)
-        except Exception as e:
-            self.printError("could not write DAC parameters", traceback.format_exc())
-            errorsOccurred += 1
+            # write DAC parameters
+            try:
+                self.posWriter.writeDACs(moduleID, modulePosition, rocDACs)
+            except Exception as e:
+                self.printError("could not write DAC parameters", traceback.format_exc())
+                errorsOccurred += 1
 
         # ------------------------------------------------------------------------------------------------------------------
         # trimbits
         # ------------------------------------------------------------------------------------------------------------------
-        try:
-            # read trimbits
-            moduleTrimbits = self.dataSource.getTrimBits(ModuleID=moduleID, options=testOptions)
+        if 'trim' in self.extractParameters:
+            try:
+                # read trimbits
+                moduleTrimbits = self.dataSource.getTrimBits(ModuleID=moduleID, options=testOptions)
 
-            # write trimbits
-            self.posWriter.writeTrim(moduleID, modulePosition, moduleTrimbits)
-        except Exception as e:
-            self.printError("could not read/write trimbits", traceback.format_exc())
-            errorsOccurred += 1
+                # write trimbits
+                self.posWriter.writeTrim(moduleID, modulePosition, moduleTrimbits)
+            except Exception as e:
+                self.printError("could not read/write trimbits", traceback.format_exc())
+                errorsOccurred += 1
 
         # ------------------------------------------------------------------------------------------------------------------
         # TBM parameters
         # ------------------------------------------------------------------------------------------------------------------
-        try:
-            # read TBM parameters
-            tbmParameters = self.dataSource.getTbmParameters(ModuleID=moduleID, options=testOptions)
+        if 'tbm' in self.extractParameters:
+            try:
+                # read TBM parameters
+                tbmParameters = self.dataSource.getTbmParameters(ModuleID=moduleID, options=testOptions)
 
-            # write TBM parameters to pixel online format
-            self.posWriter.writeTBM(moduleID, modulePosition, tbmParameters)
-        except Exception as e:
-            self.printError("could not read/write TBM parameters", traceback.format_exc())
-            errorsOccurred += 1
+                # write TBM parameters to pixel online format
+                self.posWriter.writeTBM(moduleID, modulePosition, tbmParameters)
+            except Exception as e:
+                self.printError("could not read/write TBM parameters", traceback.format_exc())
+                errorsOccurred += 1
 
         # ------------------------------------------------------------------------------------------------------------------
         # mask bits
         # ------------------------------------------------------------------------------------------------------------------
-        try:
-            # read maskbits
-            moduleMaskbits = self.dataSource.getMaskBits(ModuleID=moduleID, options=testOptions)
+        if 'mask' in self.extractParameters:
+            try:
+                # read maskbits
+                moduleMaskbits = self.dataSource.getMaskBits(ModuleID=moduleID, options=testOptions)
 
-            # write maskbits
-            self.posWriter.writeMask(moduleID, modulePosition, moduleMaskbits)
-        except Exception as e:
-            self.printError("could not read/write maskbits", traceback.format_exc())
-            errorsOccurred += 1
+                # write maskbits
+                self.posWriter.writeMask(moduleID, modulePosition, moduleMaskbits)
+            except Exception as e:
+                self.printError("could not read/write maskbits", traceback.format_exc())
+                errorsOccurred += 1
 
         # ------------------------------------------------------------------------------------------------------------------
         # readback
         # ------------------------------------------------------------------------------------------------------------------
-        try:
-            # read readback
-            moduleReadback = self.dataSource.getReadbackCalibration(ModuleID=moduleID, options=testOptions)
+        if 'iana' in self.extractParameters:
+            try:
+                # read readback
+                moduleReadback = self.dataSource.getReadbackCalibration(ModuleID=moduleID, options=testOptions)
 
-            # write readback
-            self.posWriter.writeReadback(moduleID, modulePosition, moduleReadback)
-        except Exception as e:
-            self.printError("could not read/write readback calibration constants", traceback.format_exc())
-            errorsOccurred += 1
+                # write readback
+                self.posWriter.writeReadback(moduleID, modulePosition, moduleReadback)
+            except Exception as e:
+                self.printError("could not read/write readback calibration constants", traceback.format_exc())
+                errorsOccurred += 1
 
+        # ------------------------------------------------------------------------------------------------------------------
+        # print error statistics
+        # ------------------------------------------------------------------------------------------------------------------
         if errorsOccurred < 1:
             print " --> done."
         else:
-            print "\x1b[31m --> done, but some errors occurred!!!\x1b[0m"
+            print "\x1b[31m --> done, but %d errors occurred!!!\x1b[0m"%errorsOccurred

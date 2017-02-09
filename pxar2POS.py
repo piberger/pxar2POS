@@ -7,6 +7,8 @@ import glob
 import fnmatch
 from POSWriter.POSWriter import POSWriter
 
+PXAR2POSVERSION = '0.1'
+
 try:
     from pxar2POSConverter import pxar2POSConverter as pxar2POSConverter
 except:
@@ -27,11 +29,15 @@ print '''
 '''
 try:
     import subprocess
-    print "version:", subprocess.check_output(["git", "describe", "--always"]).replace('\n', '')
+    print "version:", "%s-%s"%(PXAR2POSVERSION,subprocess.check_output(["git", "describe", "--always"]).replace('\n', ''))
 except:
-    pass
+    print "version:", "%s" % PXAR2POSVERSION
 print "-"*80
 
+
+# **********************************************************************************************************************
+#  initialization
+# **********************************************************************************************************************
 
 # create user configuration (= not under version control) - if not existing
 if not os.path.isfile('UserConfiguration.ini'):
@@ -49,6 +55,8 @@ config = ConfigParser.SafeConfigParser()
 # make config parser case sensitive
 config.optionxform = str
 
+# load configuration
+#   UserConfiguration (not under version control) always overwrites DefaultConfiguration (under version control)
 try:
     config.read('DefaultConfiguration.ini')
 except:
@@ -66,7 +74,7 @@ parser.add_argument('-m','--module',dest='module',
                      help='module ID, e.g. M1234 or list of modules separated by comma, e.g. M1234,M2345,M3456',
                      default='')
 parser.add_argument('-T', '--trim', dest='trim',
-                    help='trim value, e.g. 35',
+                    help='trim value, e.g. 35, -1 for untrimmed',
                     default=config.get('Global', 'DefaultTrim'))
 parser.add_argument('-t', '--temp', dest='temp',
                     help='temperature',
@@ -89,6 +97,9 @@ parser.add_argument('-i', '--configuration-id', dest='configuration_id',
 parser.add_argument('-d', '--do', dest='do',
                     help='command to run',
                     default='')
+parser.add_argument('-w', '--what', dest='what',
+                    help='what parameters to extract, (comma separated): dac,iana,mask,tbm,trim',
+                    default='dac,iana,mask,tbm,trim')
 args = parser.parse_args()
 
 # check given options, --do can not be used with -m at the same time
@@ -98,7 +109,11 @@ if len(args.module.strip()) < 1 and len(args.do) < 1:
 elif len(args.do) > 0 and len(args.module) > 0:
     print "running commands for certain modules only is not implemented yet, omit -m option to run it for all!"
     exit(0)
-elif len(args.do) > 0:
+
+# **********************************************************************************************************************
+#  work with already existing files
+# **********************************************************************************************************************
+if len(args.do) > 0:
 
     # --do needs a config ID specified
     configurationID = -1
@@ -131,7 +146,7 @@ elif len(args.do) > 0:
         print '| %s|'%(('%r'%runCommand).ljust(77))
     print '|%s|'%(' '*78)
     print '+%s+'%('-'*78)
-    answer = raw_input('ENTER/y to continue, q to quit>')
+    answer = raw_input('ENTER/y to continue, q to quit: ')
 
     if answer.lower() == 'y' or len(answer.strip()) < 1:
 
@@ -263,9 +278,10 @@ elif len(args.do) > 0:
     else:
         print " \x1b[31m-> aborted!\x1b[0m"
 
+# **********************************************************************************************************************
+#  obtain data from DB
+# **********************************************************************************************************************
 else:
-    # obtain data from DB
-
     # show summary of parameters
     if args.configuration_id < 0:
         print "  -> NO configuration id specified (with -i), saving all files directly into the output folder"
@@ -289,6 +305,7 @@ else:
             'OutputPath': args.output,
             'Verbose': args.verbose,
             'ConfigurationID': args.configuration_id,
+            'ExtractParameters': args.what,
         }
     )
 
