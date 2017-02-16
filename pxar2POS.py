@@ -11,8 +11,8 @@ PXAR2POSVERSION = '0.1'
 
 try:
     from pxar2POSConverter import pxar2POSConverter as pxar2POSConverter
-except:
-    print "\x1b[31mcould not load module: 'pxar2POSConverter', make sure the file exists.\x1b[0m"
+except Exception as e:
+    print "\x1b[31mcould not load module: 'pxar2POSConverter', make sure the file exists.\n" + "%r"%e +"\x1b[0m"
 
 
 # show splash screen
@@ -112,6 +112,7 @@ elif len(args.do) > 0 and len(args.module) > 0:
 
 # **********************************************************************************************************************
 #  work with already existing files
+#    this can be used to change DACs and save it as a new configuration
 # **********************************************************************************************************************
 if len(args.do) > 0:
 
@@ -135,6 +136,7 @@ if len(args.do) > 0:
         configurations += [int(x.strip('/').split('/')[-1]) for x in glob.glob(globPath)]
     newConfigurationID = max(configurations) + 1
 
+    # commands are separated by ;
     runCommands = [x.strip().split(':') for x in args.do.split(';')]
 
     # ask user confirmation
@@ -164,7 +166,6 @@ if len(args.do) > 0:
 
         # run commands
         print "run commands..."
-
         #  examples: enable PKAM counter, but only for L4 modules: tbm:*_LYR4_*?set:TBMADisablePKAMCounter:0
         #    dac:set:Vdd:8
         #    dac:incr8bit:Vana:20
@@ -321,9 +322,12 @@ else:
 
     # convert files
     moduleIDList = args.module.replace(';',',').split(',')
+    moduleIDListLength = len(moduleIDList)
+    moduleIDListPosition = 1
     for moduleID in moduleIDList:
         print '*'*40
-        print '  %s:'%moduleID
+        print '  %s (%d/%d):'%(moduleID, moduleIDListPosition, moduleIDListLength)
         print '*'*40
         converter.convertModuleData(moduleID=moduleID, testOptions=testOptions)
+        moduleIDListPosition += 1
 
