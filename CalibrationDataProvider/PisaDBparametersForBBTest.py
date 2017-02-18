@@ -29,7 +29,7 @@ SELECT inventory_fullmodule.FULLMODULE_ID, tempnominal, ROC_POS, BumpBonding_thr
 '''
 
         self.thresholdMargin = 5  # lower threshold a bit to go from 50% efficiency point to ~100% efficiency
-        self.thresholdMax = 140  # don't go lower (=higher value) with the threshold to avoid noise
+        self.thresholdMax = 125  # don't go lower (=higher value) with the threshold to avoid noise
 
     def getBBvthrcomp(self, ModuleID, options):
 

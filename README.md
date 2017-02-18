@@ -56,7 +56,7 @@ create default configuration for a module which does not exist in DB:
 
 create DACs for BB test (bump bonding) via simple pixel alive through sensor, from DB:
 ```
-    ./pxar2POS.py -m M2222 -s BBTEST:http://cmspixelprod.pi.infn.it 
+    ./pxar2POS.py -m M2222 -w dac -s BBTEST:http://cmspixelprod.pi.infn.it 
 ```
 
 (with bash) write whole detector configuration to config ID 2:
