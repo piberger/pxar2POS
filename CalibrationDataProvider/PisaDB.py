@@ -5,7 +5,7 @@ try:
 except:
     print "\x1b[31mcould not load module: MySQLdb\x1b[0m"
     print "run: 'pip install MySQL-python'"
-    print "\x1b[31mcontinuing, but some feature will not work without this module!\x1b[0m"
+    print "\x1b[31mcontinuing, but some features will not work without this module!\x1b[0m"
 
 import getpass
 import urllib

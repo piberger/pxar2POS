@@ -133,7 +133,10 @@ if len(args.do) > 0:
     for dataType, dataSubfolder in inputFileNames.items():
         outputFolder = '/'.join(dataSubfolder.split('/')[:-2])
         globPath = args.output + '/' + outputFolder + '/*/'
-        configurations += [int(x.strip('/').split('/')[-1]) for x in glob.glob(globPath)]
+        try:
+            configurations += [int(x.strip('/').split('/')[-1]) for x in glob.glob(globPath)]
+        except:
+            pass
     newConfigurationID = max(configurations) + 1
 
     # commands are separated by ;
@@ -204,13 +207,39 @@ if len(args.do) > 0:
                     changesMade = False
                     for i in range(len(datFileLines)):
                         if conditionalMet:
+                            try:
+                                valueString = datFileLines[i].split(':')[1]
+                                paddingSpaces = len(valueString) - len(valueString.lstrip())
+                                if paddingSpaces < 1:
+                                    paddingSpaces = 1
+                            except:
+                                paddingSpaces = 1
+
                             lineParts = [x.strip() for x in datFileLines[i].split(':')]
 
                             if instruction == 'set':
                                 if lineParts[0] == runCommand[2]:
-                                    lineParts[1] = runCommand[3]
-                                    datFileLines[i] = ': '.join(lineParts) + '\n'
+                                    lineParts[1] = runCommand[3].strip()
+                                    datFileLines[i] = '%s:%s%s\n'%(lineParts[0],' '*paddingSpaces, lineParts[1])
 
+                                    # reset condition and mark the file as changed
+                                    if len(conditional) > 0:
+                                        conditionalMet = False
+                                    changesMade = True
+                            # syntax: limit:dacname:[min,max]
+                            elif instruction == 'limit':
+                                if lineParts[0] == runCommand[2]:
+                                    value = int(lineParts[1])
+                                    limits = [int(x) for x in runCommand[3].replace('[','').replace(']','').replace('(','').replace(')','').split(',')]
+                                    # if only 1 argument given, take it as maximum
+                                    if len(limits) == 1:
+                                        limits = [0, limits[0]]
+                                    if value > limits[1]:
+                                        value = limits[1]
+                                    elif value < limits[0]:
+                                        value = limits[0]
+                                    lineParts[1] = '%d'%value
+                                    datFileLines[i] = '%s:%s%s\n'%(lineParts[0],' '*paddingSpaces, lineParts[1])
                                     # reset condition and mark the file as changed
                                     if len(conditional) > 0:
                                         conditionalMet = False
@@ -218,7 +247,7 @@ if len(args.do) > 0:
                             elif instruction == 'and':
                                 if lineParts[0] == runCommand[2]:
                                     lineParts[1] = '%d'%(int(lineParts[1]) & int(runCommand[3]))
-                                    datFileLines[i] = ': '.join(lineParts) + '\n'
+                                    datFileLines[i] = '%s:%s%s\n'%(lineParts[0],' '*paddingSpaces, lineParts[1])
 
                                     # reset condition and mark the file as changed
                                     if len(conditional) > 0:
@@ -227,7 +256,7 @@ if len(args.do) > 0:
                             elif instruction == 'or':
                                 if lineParts[0] == runCommand[2]:
                                     lineParts[1] = '%d'%(int(lineParts[1]) | int(runCommand[3]))
-                                    datFileLines[i] = ': '.join(lineParts) + '\n'
+                                    datFileLines[i] = '%s:%s%s\n'%(lineParts[0],' '*paddingSpaces, lineParts[1])
 
                                     # reset condition and mark the file as changed
                                     if len(conditional) > 0:
@@ -246,7 +275,7 @@ if len(args.do) > 0:
                                     elif value < 0:
                                         value = 0
                                     lineParts[1] = '%d'%(value)
-                                    datFileLines[i] = ': '.join(lineParts) + '\n'
+                                    datFileLines[i] = '%s:%s%s\n'%(lineParts[0],' '*paddingSpaces, lineParts[1])
 
                                     # reset condition and mark the file as changed
                                     if len(conditional) > 0:
