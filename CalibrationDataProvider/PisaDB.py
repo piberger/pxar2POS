@@ -1,7 +1,7 @@
 from CalibrationDataProvider import AbstractCalibrationDataProvider
 
 try:
-    import MySQLdb00
+    import MySQLdb
 except:
     print "\x1b[31mcould not load module: MySQLdb\x1b[0m"
     print "run: 'pip install MySQL-python'"

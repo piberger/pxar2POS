@@ -9,7 +9,7 @@ class AbstractCalibrationDataProvider(object):
 
         # default trim bit value. 0=lowest threshold, 15=highest threshold
         self.defaultTrim = 15
-        self.defaultMask = 0
+        self.defaultMask = 1
 
         # readback parameters to extract
         self.readbackParameters = ['par0vd', 'par1vd', 'par0va', 'par1va', 'par0rbia', 'par1rbia', 'par0tbia',
