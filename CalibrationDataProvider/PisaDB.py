@@ -183,6 +183,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         self.db.commit()
         rows = cursor.fetchall()
         if len(rows) < 1:
+            print self.queryStringReceptions
             print "\x1b[31mERROR: no Rception tests found for tempnominal=", tempnominal,"\x1b[0m"
             return None
 
@@ -286,7 +287,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
 
         if row:
             dataId = row['test_fullmoduleanalysis.DATA_ID']
-            print "  -> Fulltest analysis ID: ", row['LASTANALYSIS_ID']
+            print "  -> Reception analysis ID: ", row['LASTANALYSIS_ID']
             print "  -> data ID: ", dataId
 
             # get remote data path for the data ID
@@ -525,7 +526,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
                     print "\x1b[31mERROR: failed to load data from JSON file %s\x1b[31m"%localFileName
 
                 # check if readback has been calibrated in FullQualification
-                if data and 'ReadbackCalibrated' in data and data['ReadbackCalibrated']['Value'].lower().strip() != 'true':
+                if True or (data and 'ReadbackCalibrated' in data and data['ReadbackCalibrated']['Value'].lower().strip() != 'true'):
                     print "INFO: readback not calibrated flag has been set for this module - reception test results will be used."
 
                     # try to obtain calibration constants from Reception test (always at +17)

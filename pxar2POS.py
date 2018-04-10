@@ -160,11 +160,14 @@ if len(args.do) > 0:
         outputFileNames = posWriterOutput.getOutputFileNames()
         print "copy configuration..."
         for dataType, dataSubfolder in inputFileNames.items():
-            copyFrom = args.output + '/' + '/'.join(dataSubfolder.split('/')[:-1])
-            copyTo = args.output + '/' + '/'.join(outputFileNames[dataType].split('/')[:-1])
-            if args.verbose:
-                print "copy:", copyFrom, " --> ", copyTo
-            shutil.copytree(copyFrom, copyTo)
+            try:
+                copyFrom = args.output + '/' + '/'.join(dataSubfolder.split('/')[:-1])
+                copyTo = args.output + '/' + '/'.join(outputFileNames[dataType].split('/')[:-1])
+                if args.verbose:
+                    print "copy:", copyFrom, " --> ", copyTo
+                shutil.copytree(copyFrom, copyTo)
+            except:
+                print "\x1b[31mERROR: copy of subfolder ",dataSubfolder," failed!\x1b[0m"
         print "  -> done."
 
         # run commands

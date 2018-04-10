@@ -16,6 +16,26 @@ class POSWriter(object):
         self.nRows = 80
         self.nCols = 52
 
+        # initialize output directory
+        try:
+            os.mkdir(self.outputPath)
+        except:
+            pass
+
+        print "---->",createFoldersOnInitialization
+        if createFoldersOnInitialization:
+            # create output subfolders if necessary
+            for folderName in ['dac', 'tbm', 'iana', 'mask', 'trim']:
+                try:
+                    print self.outputPath + '/%s' % folderName
+                    os.mkdir(self.outputPath + '/%s' % folderName)
+                except:
+                    pass
+                try:
+                    os.mkdir(self.outputPath + '/%s/%d' % (folderName, self.configurationID))
+                except:
+                    pass
+
         # output file names
         if self.configurationID < 0:
             self.outputFileNameDAC = "ROC_DAC_module_{Position}.dat"
@@ -24,25 +44,6 @@ class POSWriter(object):
             self.outputFileNameMasks = "ROC_Masks_module_{Position}.dat"
             self.outputFileNameReadback = "ROC_Iana_{Position}.dat"
         else:
-
-            # initialize output directory
-            try:
-                os.mkdir(self.outputPath)
-            except:
-                pass
-
-            if createFoldersOnInitialization:
-                # create output subfolders if necessary
-                for folderName in ['dac', 'tbm', 'iana', 'mask', 'trim']:
-                    try:
-                        os.mkdir(self.outputPath + '/%s'%folderName)
-                    except:
-                        pass
-                    try:
-                        os.mkdir(self.outputPath + '/%s/%d'%(folderName, self.configurationID))
-                    except:
-                        pass
-
             self.outputFileNameDAC = "dac/%d/ROC_DAC_module_{Position}.dat"%self.configurationID
             self.outputFileNameTrims = "trim/%d/ROC_Trims_module_{Position}.dat"%self.configurationID
             self.outputFileNameTBM = "tbm/%d/TBM_module_{Position}.dat"%self.configurationID
