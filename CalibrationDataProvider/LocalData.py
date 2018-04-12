@@ -30,6 +30,7 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
             'wbc': 'WBC',
             'readback': 'Readback',
         }
+        self.defaultMask = 0
 
     def getLocalModuleDataPath(self, ModuleID, options = {}):
 
@@ -102,35 +103,51 @@ class CalibrationDataProvider(AbstractCalibrationDataProvider):
         print "  -> reading mask bits from database: Xray test"
 
         # get DACs
-        rows = []
+        localModuleDataPaths = self.getLocalModuleDataPath(ModuleID=ModuleID, options=options)
 
-        if len(rows) < 1:
-            print "WARNING: no X-ray test found for this module, using unmasked configuration!"
+        for localModuleDataPath in localModuleDataPaths:
+            maskFileName = localModuleDataPath + '/defaultMaskFile.dat'
+            if os.path.isfile(maskFileName):
+                # initialize with default
+                rocMasks = []
+                for iRoc in range(self.nROCs):
+                    rocMask = []
+                    for col in range(52):
+                        rocMask.append([self.defaultMask]*80)
+                    rocMasks.append(rocMask)
 
-            for iRoc in range(self.nROCs):
-                rocMasks = [self.defaultMask] * self.nPix
-                masks.append({'ROC': iRoc, 'Masks': rocMasks})
-        else:
-            if len(rows) != self.nROCs:
-                if self.verbose:
-                    print '-'*80, '\n',rows,'\n'
-                raise NameError("ERROR: DB returns data for less/more ROCs than exist on the module!")
+                with open(maskFileName, 'r') as maskFile:
+                    maskLines = [x.strip() for x in maskFile.readlines() if not x.strip().startswith('#')]
+                print "mask lines:", maskLines
 
-            print "    -> XRAY HR test ID", rows[0]['LASTTEST_XRAY_HR']
-            for row in rows:
-                rocMasks = [self.defaultMask] * self.nPix
-                maskedPixelsString = row['ADDR_PIXELS_HOT'].strip().strip('[').strip(']')
-                if len(maskedPixelsString) > 0:
-                    maskedPixels = [[int(y) for y in x.strip().strip('(').strip(')').split(',')] for x in maskedPixelsString.split('),')]
-                else:
-                    maskedPixels = []
-                if self.verbose:
-                    if len(maskedPixels) > 0:
-                        print "%d pixels MASKED on ROC %d:"%(len(maskedPixels), int(row['ROC_POS'])), maskedPixels
-                for maskedPixel in maskedPixels:
-                    rocMasks[maskedPixel[1]*self.nRows + maskedPixel[2]] = 1
+                # how to Mask
+                # pix 0 42 51
+                # col 0 21
+                # row 0 4
+                # roc 0
 
-                masks.append({'ROC': int(row['ROC_POS']), 'Masks': rocMasks})
+                for maskLine in maskLines:
+                    maskLineParts = [x for x in maskLine.split(' ') if len(x.strip())>0]
+                    if maskLineParts[0] == 'pix':
+                        rocMasks[int(maskLineParts[1])][int(maskLineParts[2])][int(maskLineParts[3])] = 1
+                    elif maskLineParts[0] == 'col':
+                        rocMasks[int(maskLineParts[1])][int(maskLineParts[2])] = [1]*80
+                    elif maskLineParts[0] == 'row':
+                        for col in range(52):
+                            rocMasks[int(maskLineParts[1])][col][int(maskLineParts[2])] = 1
+                    elif maskLineParts[0] == 'roc':
+                        for col in range(52):
+                            rocMasks[int(maskLineParts[1])][col] = [1]*80
+                    else:
+                        print "\x1b[31mERROR: illegal mask command:", maskLineParts[0], " -> ignored\x1b[0m"
+
+                # flatten out mask bits
+                for iRoc in range(self.nROCs):
+                    rocMasksFlat = []
+                    for col in range(52):
+                        rocMasksFlat += rocMasks[iRoc][col]
+                    masks.append({'ROC': iRoc, 'Masks': rocMasksFlat})
+                break
 
         return masks
 
