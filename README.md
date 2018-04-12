@@ -31,6 +31,9 @@ Data is read from a remote MySQL server if config option DataSource contains 'ht
 ```
 
 ### examples:
+
+(some will not work anymore since the database is offline)
+
 show all available command line options:
 ```
     ./pxar2POS.py --help
