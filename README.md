@@ -17,6 +17,18 @@ converts pxar parameter files to POS files
 
 Data is read from a remote MySQL server if config option DataSource contains 'http://' as prefix (see default), otherwise from local pxar folder structure.
 
+### example to work with local files from pXar:
+
+```
+    git clone https://github.com/piberger/pxar2POS.git
+    echo -e "M2100\tBPix\tBmI\tSEC5\tLYR2\tLDR8F\tMOD1" > positions.txt
+    mkdir data && cd data
+    mkdir M2100_FullQualification_2015-09-02_10h55m_1441184145 && cd M2100_FullQualification_2015-09-02_10h55m_1441184145
+    mkdir 000_FulltestPxar_m20 && cd 000_FulltestPxar_m20
+    # copy all pxarOutput files to ./
+    cd ../../../pxar2POS/
+    ./pxar2POS.py -m M2100 -o ../output -s ../data/ -p ../positions.txt
+```
 
 ### examples:
 show all available command line options:
